@@ -1,0 +1,38 @@
+
+
+
+Sow-n-Grow Version 1 - A density-based clustering algorithm using shared memory (implemented with OpenMP)
+
+Dependencies:
+1. g++
+
+	g++ is required in order to compile the code
+
+2. OpenMP
+	
+	OpenMP is required in order to do shared memory computing
+
+How to run SnG:
+1. Compile the source files using the following command
+
+	make
+
+2. Run using following command 
+
+	./omp_dbscan -i filename -b -m minpts -n seeds -e epsilon -o output -t threads
+
+	Example:
+
+	./omp_dbscan -i clus50k.bin -b -m 5 -n 1000 -e 25 -t 8 -o test
+
+	run the following to get detail description on the program arguments
+
+	./omp_dbscan ?
+
+3. Input file format:
+	
+	binary file:
+	number of points, N and number of dimensions, D (each 4 bytes) followed by the points coordinates (N x D floating point numbers).
+
+	text file:
+	each line is a point (no need to mention the number of points or the number of dimensions).
