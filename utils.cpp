@@ -20,7 +20,7 @@
 /*   International Conference on High Performance Computing, Networking,     */
 /*   Storage and Analysis (Supercomputing, SC'12), pp.62:1-62:11, 2012.	     */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
+ 
 #include "utils.h"
 
 // Find Kth element without recusion

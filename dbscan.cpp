@@ -22,7 +22,7 @@ namespace NWUClustering
 		m_member.clear();
 	}
 
-	
+
 
 	void ClusteringAlgo::writeClusters(ostream& o)
 	{
@@ -145,7 +145,7 @@ namespace NWUClustering
 		// private means that each thread will have its own private copy of variable in memory
 		// shared means that all threads will share same copy of variable in memory
 		{
-			int lower, upper;
+			int lower, upper; 
 			tid = omp_get_thread_num(); // gets tid of each thread to identify it
         	lower = sch * tid;  //The range of points that each thread has. Sch is number of points per thread
 	        upper = sch * (tid + 1);
