@@ -4,6 +4,7 @@
 #include <iterator>
 #include <algorithm>
 #include <vector>
+
 namespace NWUClustering
 {
     void ClusteringAlgo::set_dbscan_params(double eps, int minPts, int seeds)
@@ -22,7 +23,6 @@ namespace NWUClustering
     m_member.clear();
   }
 
-  
 
   void ClusteringAlgo::writeClusters(ostream& o)
   {
@@ -37,6 +37,7 @@ namespace NWUClustering
     }
     int sum_points = 0;
     int noise = 0;
+
     for(i = 0; i < m_clusters.size(); i++)
     {
       sum_points += m_clusters[i].size();
@@ -50,6 +51,7 @@ namespace NWUClustering
     cout << "Total points " << noise + sum_points << " pt_in_cls " << sum_points << " noise " << noise << endl;
     cout << "Number of clusters: " << m_clusters.size() << endl;
   }
+
   void ClusteringAlgo::writeClusters_uf(ostream& o)
   //changed return type to int. Was void. Used for testing purposes
   {
@@ -111,7 +113,9 @@ namespace NWUClustering
   // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
 
   void run_dbscan_algo_uf(ClusteringAlgo& dbs)
-  {     
+  {
+
+      
     int tid, i, pid, j, k, npid, root, root1, root2, sid, h, qualitypoints=0, test=0;
     srand(time(NULL));
 
@@ -166,6 +170,8 @@ namespace NWUClustering
       #pragma omp barrier
       #pragma omp for
 
+      for(h=0; h < (dbs.m_seeds); h++) {
+        //this loop initializes first n growing points randomly
 
       for(h=0; h < (dbs.m_seeds); h++)
       {
@@ -447,6 +453,7 @@ namespace NWUClustering
     int cid = 1; // cluster id
     vector <int> c;
     c.reserve(dbs.m_pts->m_i_num_points);
+
             // initialize some parameters
     dbs.m_noise.resize(dbs.m_pts->m_i_num_points, false);
               dbs.m_visited.resize(dbs.m_pts->m_i_num_points, false);   
@@ -460,7 +467,7 @@ namespace NWUClustering
     ne.reserve(dbs.m_pts->m_i_num_points);
     ne2.reserve(dbs.m_pts->m_i_num_points);
     vector<int>* ind = dbs.m_kdtree->getIndex();
-    double start = omp_get_wtime() ;    
+    double start = omp_get_wtime() ;
     for(i = 0; i < dbs.m_pts->m_i_num_points; i++)
     {
       pid = (*ind)[i];

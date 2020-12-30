@@ -20,7 +20,7 @@
 /*   International Conference on High Performance Computing, Networking,     */
 /*   Storage and Analysis (Supercomputing, SC'12), pp.62:1-62:11, 2012.      */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
+ 
 
 
 #include "clusters.h"
@@ -63,6 +63,7 @@ namespace NWUClustering
         m_pts = new Points;       
 
         m_pts->m_i_dims = dims;
+
                     m_pts->m_i_num_points = num_points;
         
         //allocate memory for the points
@@ -112,10 +113,11 @@ namespace NWUClustering
 
         // get point count
         num_points = 0;
+
         while (!file.eof())
         {
           if(line.length() == 0)
-                                                continue;
+            continue;
           //cout << line << endl;
           num_points++;
           getline(file, line);
@@ -146,6 +148,7 @@ namespace NWUClustering
           ss << line;
 
           j = 0;
+
           while(ss >> buf && j < dims) // get the corordinate of the points
           {
             m_pts->m_points[i][j] = atof(buf.c_str());
@@ -154,6 +157,7 @@ namespace NWUClustering
           
           i++;
           getline(file, line);
+
             }
 
             file.close();
@@ -170,6 +174,7 @@ namespace NWUClustering
     
     return 0;   
   }
+
 
   int Clusters::build_kdtree()
   {

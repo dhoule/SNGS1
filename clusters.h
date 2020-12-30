@@ -20,7 +20,7 @@
 /*   International Conference on High Performance Computing, Networking,     */
 /*   Storage and Analysis (Supercomputing, SC'12), pp.62:1-62:11, 2012.      */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
+ 
 
 #ifndef _CLUSTER_
 #define _CLUSTER_
@@ -37,6 +37,7 @@ namespace NWUClustering
     int m_i_num_points;
   };
 
+
   class Clusters
   {
   public:
@@ -52,6 +53,7 @@ namespace NWUClustering
     vector <int>  m_pid_to_cid; // point id to cluster id
     vector <vector <int> > m_clusters;
     int     m_parcent_of_data;
+
   };
 };
 

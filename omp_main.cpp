@@ -4,7 +4,7 @@
 #include "utils.h"
 #include "kdtree2.hpp"
 static void usage(char *argv0) 
-{
+{ 
     const char *params =
   "Usage: %s [switches] -i filename -b -m minpts -n seeds -e epsilon -o output -t threads\n"
       " -i filename : file containing input data to be clustered\n"

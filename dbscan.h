@@ -9,9 +9,7 @@
 
 #include "clusters.h"
 
-namespace NWUClustering
-
-{
+namespace NWUClustering {
 
   class ClusteringAlgo : public Clusters
 
@@ -57,7 +55,7 @@ namespace NWUClustering
 
     vector <int> m_member;
 
-  };  
+  };
 
 
 

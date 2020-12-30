@@ -8,7 +8,6 @@
 
 #include "kdtree2.hpp"
 
-
 // utility
 
 inline float squared(const float x) {
@@ -55,6 +54,7 @@ push_element_and_heapify(kdtree2_result& e) {
   push_back(e); // what a vector does.
   push_heap( begin(), end() ); // and now heapify it, with the new elt.
 }
+
 float kdtree2_result_vector::replace_maxpri_elt_return_new_maxpri(kdtree2_result& e) {
   // remove the maximum priority element on the queue and replace it
   // with 'e', and return its priority.
@@ -99,9 +99,9 @@ kdtree2::kdtree2(array2dfloat& data_in,bool rearrange_in,int dim_in)
   if (dim_in > 0) 
     dim = dim_in;
  
- // cout << "building kd tree" << endl;
+  // cout << "building kd tree" << endl;
   build_tree();
-//cout << "building kd tree" << endl;
+  //cout << "building kd tree" << endl;
 
   if (rearrange) {
     // if we have a rearranged tree.
@@ -113,7 +113,7 @@ kdtree2::kdtree2(array2dfloat& data_in,bool rearrange_in,int dim_in)
     //rearranged_data.resize( extents[N][dim] );
     rearranged_data.resize(N);
     for(int ll = 0; ll < N; ll++)
-        rearranged_data[ll].resize(dim);   
+      rearranged_data[ll].resize(dim);   
 
  
     // permute the data for it.
@@ -147,7 +147,6 @@ void kdtree2::build_tree()
    // #ifdef _DEBUG
    // cout << "regular_median_total " << regular_median << " not_regular_median_total " << not_regular_median << endl;
    // #endif
- 
 }
 
 kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) {
@@ -173,8 +172,6 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
     node->l = l;
     node->u = u;
     node->left = node->right = NULL;
-    
-
   } else {
     //
     // Compute an APPROXIMATE bounding box for this node.
@@ -197,6 +194,7 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
   
       float spread = node->box[i].upper - node->box[i].lower; 
       //if (spread > maxspread || c == -1) {
+
     if (spread>maxspread) {
   maxspread = spread;
   c=i; 
@@ -273,7 +271,7 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
     node->right = build_tree_for_range(m+1,u,node);
 
     if (node->right == NULL) {
-      for (int i=0; i<dim; i++) 
+      for (int i=0; i<dim; i++)
   node->box[i] = node->left->box[i]; 
        node->cut_val = node->left->box[c].upper;
        node->cut_val_left = node->cut_val_right = node->cut_val;
@@ -304,8 +302,7 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
 }
 
 
-void kdtree2:: spread_in_coordinate(int c, int l, int u, interval& interv)
-{
+void kdtree2:: spread_in_coordinate(int c, int l, int u, interval& interv) {
   // return the minimum and maximum of the indexed data between l and u in
   // smin_out and smax_out.
   float smin, smax;
@@ -388,7 +385,6 @@ int kdtree2::select_on_coordinate_value(int c, float alpha, int l, int u) {
     return(lb);
   else
     return(lb-1);
-  
 }
 
 
@@ -495,7 +491,6 @@ void kdtree2::n_nearest(vector<float>& qv, int nn, kdtree2_result_vector& result
   root->search(sr); 
 
   if (sort_results) sort(result.begin(), result.end());
-  
 }
 
 // search for n nearest to a given query vector 'qv'.
@@ -527,7 +522,7 @@ void kdtree2::n_nearest_around_point(int idxin, int correltime, int nn,
 
 
 void kdtree2::r_nearest(vector<float>& qv, float r2, kdtree2_result_vector& result) {
-// search for all within a ball of a certain radius
+  // search for all within a ball of a certain radius
   searchrecord sr(qv,*this,result);
   vector<float> vdiff(dim,0.0); 
 
@@ -545,7 +540,7 @@ void kdtree2::r_nearest(vector<float>& qv, float r2, kdtree2_result_vector& resu
 }
 
 int kdtree2::r_count(vector<float>& qv, float r2) {
-// search for all within a ball of a certain radius
+  // search for all within a ball of a certain radius
   {
     kdtree2_result_vector result; 
     searchrecord sr(qv,*this,result);
@@ -588,8 +583,7 @@ void kdtree2::r_nearest_around_point(int idxin, int correltime, float r2,
 }
 
 
-int kdtree2::r_count_around_point(int idxin, int correltime, float r2) 
-{
+int kdtree2::r_count_around_point(int idxin, int correltime, float r2) {
   vector<float> qv(dim);  //  query vector
 
 
@@ -608,9 +602,7 @@ int kdtree2::r_count_around_point(int idxin, int correltime, float r2)
     sr.nn = 0; 
     root->search(sr); 
     return(result.size());
-  }
-
-  
+  } 
 }
 
 
@@ -676,7 +668,7 @@ void kdtree2_node::search(searchrecord& sr) {
       // first cut
       if (nfarther->box_in_search_range(sr)) {
   nfarther->search(sr); 
-      }      
+      }
     }
   }
 }
