@@ -115,7 +115,7 @@ public:
   // search for n nearest to a given query vector 'qv'.
 
   void n_nearest_around_point(int idxin, int correltime, int nn,
-			      kdtree2_result_vector& result);
+            kdtree2_result_vector& result);
   // search for 'nn' nearest to point [idxin] of the input data, excluding
   // neighbors within correltime 
   
@@ -124,7 +124,7 @@ public:
   // r2.   Return number of neighbors in 'result.size()', 
 
   void r_nearest_around_point(int idxin, int correltime, float r2,
-			      kdtree2_result_vector& result);
+            kdtree2_result_vector& result);
   // like 'r_nearest', but around existing point, with decorrelation
   // interval. 
 
@@ -183,8 +183,8 @@ public:
   // constructor
   kdtree2_node(int dim);
   //, int cut_dim_in,
-  // 	       float cut_val_in, float cut_val_left_in, 
-  //	       float cut_val_right_in);
+  //         float cut_val_in, float cut_val_left_in, 
+  //         float cut_val_right_in);
   // destructor
   ~kdtree2_node();
 
