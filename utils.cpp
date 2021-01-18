@@ -35,10 +35,10 @@ float findKMedian(vector<float>& A,int K) {
     do {
       while (A[i]<x) 
         i++;
-      
+
       while (x<A[j]) 
         j--;
-      
+
       if (i<=j) {
         swap(A[i], A[j]);
         i++; 
@@ -48,7 +48,6 @@ float findKMedian(vector<float>& A,int K) {
 
     if (j<K) 
       l=i;
-    
     if (K<i) 
       m=j;
   }

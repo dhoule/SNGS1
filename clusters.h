@@ -29,7 +29,6 @@
 #include "kdtree2.hpp"
 
 namespace NWUClustering {
-
   struct Points {
     array2dfloat m_points;
     int m_i_dims;
@@ -41,9 +40,9 @@ namespace NWUClustering {
       Clusters():m_pts(NULL),m_kdtree(NULL){ }
       virtual ~Clusters();
 
-      int     read_file(char* infilename, int isBinaryFile);
-      int     build_kdtree();
-      
+      int read_file(char* infilename, int isBinaryFile);
+      int build_kdtree();
+    
     public:
       Points*   m_pts;
       kdtree2*  m_kdtree;

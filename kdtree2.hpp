@@ -59,9 +59,9 @@ class kdtree2_result_vector : public vector<kdtree2_result> {
     float replace_maxpri_elt_return_new_maxpri(kdtree2_result&);
 
     float max_value(); 
-    // return the distance which has the maximum value of all on list, 
-    // assuming that ALL insertions were made by
-    // push_element_and_heapify() 
+  // return the distance which has the maximum value of all on list, 
+  // assuming that ALL insertions were made by
+  // push_element_and_heapify() 
 };
 
 
@@ -73,7 +73,6 @@ class kdtree2_result_vector : public vector<kdtree2_result> {
 //
 
 class kdtree2 {
-
   public: 
     const array2dfloat& the_data;   
     // "the_data" is a reference to the underlying multi_array of the
@@ -115,8 +114,7 @@ class kdtree2 {
     void n_nearest(vector<float>& qv, int nn, kdtree2_result_vector& result);
     // search for n nearest to a given query vector 'qv'.
 
-    void n_nearest_around_point(int idxin, int correltime, int nn,
-              kdtree2_result_vector& result);
+    void n_nearest_around_point(int idxin, int correltime, int nn, kdtree2_result_vector& result);
     // search for 'nn' nearest to point [idxin] of the input data, excluding
     // neighbors within correltime 
     
@@ -124,8 +122,7 @@ class kdtree2 {
     // search for all neighbors in ball of size (square Euclidean distance)
     // r2.   Return number of neighbors in 'result.size()', 
 
-    void r_nearest_around_point(int idxin, int correltime, float r2,
-              kdtree2_result_vector& result);
+    void r_nearest_around_point(int idxin, int correltime, float r2, kdtree2_result_vector& result);
     // like 'r_nearest', but around existing point, with decorrelation
     // interval. 
 
@@ -181,7 +178,6 @@ class kdtree2 {
 
 
 class kdtree2_node {
-  
   public:
     // constructor
     kdtree2_node(int dim);

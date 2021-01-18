@@ -1,17 +1,21 @@
 
 #ifndef _DBSCAN_
+
 #define _DBSCAN_
+
+
 
 #include "utils.h"
 #include "clusters.h"
 
 namespace NWUClustering {
 
-  class ClusteringAlgo : public Clusters {
+  class ClusteringAlgo:public Clusters {
 
     public:
 
       ClusteringAlgo(){ }
+
       virtual ~ClusteringAlgo();
 
       // functions for dbscan algorithm
@@ -22,6 +26,7 @@ namespace NWUClustering {
     public:
 
       // parameters to run dbscan algorithm
+
       double  m_epsSquare;
       int   m_minPts;
       int m_seeds;
@@ -30,7 +35,9 @@ namespace NWUClustering {
       // noise vector
 
       vector<bool> m_noise;
+
       // noise vector
+
       vector<bool> m_visited;
       vector <int> m_parents;
       vector <int> m_corepoint;

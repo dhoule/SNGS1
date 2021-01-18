@@ -28,7 +28,6 @@
 namespace NWUClustering {
 
   Clusters::~Clusters() {
-
     if(m_pts) {
       m_pts->m_points.clear();
       delete m_pts;
@@ -48,11 +47,12 @@ namespace NWUClustering {
     int num_points, dims;
 
     if(isBinaryFile == 1) {
-
       ifstream file (infilename, ios::in|ios::binary);
       if(file.is_open()) {
         file.read((char*)&num_points, sizeof(int));
         file.read((char*)&dims, sizeof(int));
+            
+        // cout << "Points " << num_points << " dims " << dims << endl;
 
         // allocate memory for points
         m_pts = new Points;       
@@ -64,9 +64,10 @@ namespace NWUClustering {
         for(int ll = 0; ll < num_points; ll++)
           m_pts->m_points[ll].resize(dims);
 
+        
         point_coord_type* pt;         
         pt = (point_coord_type*) malloc(dims * sizeof(point_coord_type));
-                        
+      
         for (i = 0; i < num_points; i++) {
           file.read((char*)pt, dims*sizeof(point_coord_type));
         
@@ -80,7 +81,7 @@ namespace NWUClustering {
         cout << "Error: no such file: " << infilename << endl;
         return -1;
       }
-    } else {
+    }  else {
       string line, line2, buf;
       ifstream file(infilename);
       stringstream ss;
@@ -122,6 +123,7 @@ namespace NWUClustering {
 
         i = 0;
         while (!file.eof()) {
+
           if(line.length() == 0)
             continue;
 
@@ -153,7 +155,7 @@ namespace NWUClustering {
   }
 
   int Clusters::build_kdtree() {
-
+    
     if(m_pts == NULL) {
       cout << "Point set is empty" << endl;
       return -1;
