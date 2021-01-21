@@ -93,17 +93,37 @@ namespace NWUClustering {
     clusters.clear();
   }
 
-  // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
+  void ClusteringAlgo::getGrowingPoints(vector<int>& growing_points, int sch, int tid) {
+    int sid;
+    kdtree2_result_vector ne;
+    vector<int>* ind = m_kdtree->getIndex(); // Sets a vector that contains the index of all points
+    srand(time(NULL));
 
+    for(int h=0; h < m_seeds; h++) {
+      //this loop initializes first n growing points randomly
+      do {
+        sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
+      } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()));
+      //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
+      m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
+      if(ne.size() >= m_minPts) {
+        growing_points.push_back(sid); // adds the point to the growing points vector
+        m_member[sid] = 1; // marks the point as a member of a cluster
+      } 
+      ne.clear();
+    }
+  }
+
+  // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
   void run_dbscan_algo_uf(ClusteringAlgo& dbs) {     
     
-    int tid, i, pid, j, k, npid, root, root1, root2, sid, h, qualitypoints=0, test=0;
-    srand(time(NULL));
+    int tid, i, pid, j, k, npid, root, root1, root2, sid, h, test=0;
+    vector <int> growing_points;
+    // srand(time(NULL));
 
     // initialize some parameters
     dbs.m_clusters.clear();
-    
-    vector <int> growing_points;
+  
     kdtree2_result_vector ne;
     kdtree2_result_vector ne2;
     // assign parent to itestf
@@ -131,7 +151,7 @@ namespace NWUClustering {
     double start = omp_get_wtime();
     // cout<< endl;
 
-    #pragma omp parallel private(root, root1, root2, tid, ne, ne2, npid, i, j, pid, growing_points, sid) shared(sch, ind, h, test, qualitypoints) //, prID) // creates threads
+    #pragma omp parallel private(root, root1, root2, tid, ne, ne2, npid, i, j, pid, growing_points, sid) shared(sch, ind, h, test) //, prID) // creates threads
     // private means that each thread will have its own private copy of variable in memory
     // shared means that all threads will share same copy of variable in memory
     {
@@ -151,23 +171,11 @@ namespace NWUClustering {
       
       //#pragma omp parallel for
       #pragma omp barrier
-      #pragma omp for
+      #pragma omp parallel
+        dbs.getGrowingPoints(growing_points, sch, tid);
+      // #pragma omp for
+      // // TODO seed points here
 
-      for(h=0; h < (dbs.m_seeds); h++) {
-        //this loop initializes first n growing points randomly
-        do {
-          sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
-        } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()));
-        //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
-        dbs.m_kdtree->r_nearest_around_point(sid, 0, dbs.m_epsSquare, ne);
-        if(ne.size() >= dbs.m_minPts) {
-          qualitypoints++;
-          growing_points.push_back(sid); // adds the point to the growing points vector
-          dbs.m_member[sid] = 1; // marks the point as a member of a cluster
-        } 
-        // tid is the thread number, and sid is the index of the point
-        //dbs.m_corepoint
-      }
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
@@ -278,7 +286,7 @@ namespace NWUClustering {
     // merge the trees that have not been merged yet
     double stop = omp_get_wtime() ;
     cout  <<  endl;
-    cout << "Quality points: " << qualitypoints << endl;
+    // cout << "Quality points: " << dbs.qualitypoints << endl;
     cout << "Local computation took " << stop - start << " seconds." << endl;
     //allocate and initiate locks
     omp_lock_t *nlocks;
