@@ -115,7 +115,6 @@ namespace NWUClustering {
   }
 
   // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
-
   void run_dbscan_algo_uf(ClusteringAlgo& dbs) {     
     
     int tid, i, pid, j, k, npid, root, root1, root2, sid, h, test=0;
@@ -176,6 +175,7 @@ namespace NWUClustering {
         dbs.getGrowingPoints(growing_points, sch, tid);
       // #pragma omp for
       // // TODO seed points here
+
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point

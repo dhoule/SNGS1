@@ -75,8 +75,8 @@ float kdtree2_result_vector::replace_maxpri_elt_return_new_maxpri(kdtree2_result
 // constructor
 kdtree2::kdtree2(array2dfloat& data_in,bool rearrange_in,int dim_in)
   : the_data(data_in),
-//    N  ( data_in.shape()[0] ),
-//    dim( data_in.shape()[1] ),
+  //    N  ( data_in.shape()[0] ),
+  //    dim( data_in.shape()[1] ),
     N (data_in.size()), //N  ( data_in.shape()[0] ),
     dim (data_in[0].size()), //dim( data_in.shape()[1] ),
     sort_results(false),
@@ -99,9 +99,9 @@ kdtree2::kdtree2(array2dfloat& data_in,bool rearrange_in,int dim_in)
   if (dim_in > 0) 
     dim = dim_in;
  
-  // cout << "building kd tree" << endl;
+ // cout << "building kd tree" << endl;
   build_tree();
-  //cout << "building kd tree" << endl;
+//cout << "building kd tree" << endl;
 
   if (rearrange) {
     // if we have a rearranged tree.
@@ -233,21 +233,21 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
 
       // instead of mean, use median
       /* ADDITIONAL CODE
-        vector <float> data;
-        data.reserve(u-l+1);
+      vector <float> data;
+      data.reserve(u-l+1);
 
-        for (int k=l; k <= u; k++) {
-            data.push_back(the_data[ind[k]][c]);
-          }
-        
-        float median;
-        median = findKMedian(data, data.size()/2);
-        data.clear();
+      for (int k=l; k <= u; k++) {
+          data.push_back(the_data[ind[k]][c]);
+        }
+      
+      float median;
+      median = findKMedian(data, data.size()/2);
+      data.clear();
 
-        m = select_on_coordinate_value(c,median,l,u);
-        //data.clear();
+      m = select_on_coordinate_value(c,median,l,u);
+      //data.clear();
 
-        // END OF ADDITIONAL CODE 
+      // END OF ADDITIONAL CODE 
       */ 
     }
 
@@ -303,7 +303,7 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
 }
 
 
-void kdtree2:: spread_in_coordinate(int c, int l, int u, interval& interv) {
+void kdtree2::spread_in_coordinate(int c, int l, int u, interval& interv) {
   // return the minimum and maximum of the indexed data between l and u in
   // smin_out and smax_out.
   float smin, smax;
@@ -328,7 +328,7 @@ void kdtree2:: spread_in_coordinate(int c, int l, int u, interval& interv) {
 
     if (smin > lmin) 
       smin = lmin;
-    
+
     if (smax <lmax) 
       smax = lmax;
   }
@@ -337,7 +337,7 @@ void kdtree2:: spread_in_coordinate(int c, int l, int u, interval& interv) {
     float last = the_data[ind[u]] [c];
     if (smin>last) 
       smin = last;
-    
+
     if (smax<last) 
       smax = last;
   }
@@ -366,7 +366,7 @@ void kdtree2::select_on_coordinate(int c, int k, int l, int u) {
 
     if (m <= k) 
       l = m+1;
-    
+
     if (m >= k) 
       u = m-1;
   } // while loop
@@ -456,8 +456,7 @@ class searchrecord {
     // constructor
 
   public:
-    searchrecord(vector<float>& qv_in, kdtree2& tree_in,
-           kdtree2_result_vector& result_in) :  
+    searchrecord(vector<float>& qv_in, kdtree2& tree_in, kdtree2_result_vector& result_in) :  
       qv(qv_in),
       result(result_in),
       data(tree_in.data),
@@ -801,11 +800,8 @@ void kdtree2_node::process_terminal_node(searchrecord& sr) {
       e.idx = indexofi;
       e.dis = dis;
       sr.result.push_element_and_heapify(e); 
-      if (debug) 
-        cout << "unilaterally pushed dis=" << dis;
-      
-      if (sr.result.size() == nn) 
-        ballsize = sr.result.max_value();
+      if (debug) cout << "unilaterally pushed dis=" << dis;
+      if (sr.result.size() == nn) ballsize = sr.result.max_value();
       // Set the ball radius to the largest on the list (maximum priority).
       if (debug) {
         cout << " ballsize = " << ballsize << "\n"; 
@@ -888,7 +884,7 @@ void kdtree2_node::process_terminal_node_fixedball(searchrecord& sr) {
     
     if (centeridx > 0) {
       // we are doing decorrelation interval
-      if (abs(indexofi-centeridx) < correltime) 
+      if (abs(indexofi-centeridx) < correltime)
         continue; // skip this point. 
     }
 

@@ -16,9 +16,9 @@ static void usage(char *argv0) {
     " -t threads  : number of threads to be employed\n\n";
   fprintf(stderr, params, argv0);
   exit(-1);
-}
-
+  }
 int main(int argc, char** argv) {
+
   double  seconds;
   int   opt;
   int   minPts, threads;
@@ -36,7 +36,6 @@ int main(int argc, char** argv) {
   outfilename   = NULL;
   infilename  = NULL;
   threads   = -1;
-  
   while ((opt=getopt(argc,argv,"i:t:d:p:m:n:e:o:v:z:bxghncul"))!= EOF) {
     switch (opt) {
       case 'i':
@@ -76,7 +75,7 @@ int main(int argc, char** argv) {
     usage(argv[0]);
     exit(-1);
   }
-
+  
   omp_set_num_threads(threads);
   NWUClustering::ClusteringAlgo dbs;
   cout << "Input parameters " << " MinPts " << minPts << " Epsilon " << eps << endl;
@@ -84,7 +83,8 @@ int main(int argc, char** argv) {
   cout << "Dataset used: " << infilename << endl;
   ofstream outputfile;
   outputfile.open("runs.txt");
-
+  double time;
+  
   dbs.set_dbscan_params(eps, minPts, seeds);
   if(dbs.read_file(infilename, isBinaryFile) == -1)
     exit(-1);
@@ -93,11 +93,13 @@ int main(int argc, char** argv) {
   dbs.build_kdtree();
   start = omp_get_wtime();
   run_dbscan_algo_uf(dbs);
-
-  cout << "DBSCAN (total) took " << omp_get_wtime() - start << " seconds." << endl;
+  time = omp_get_wtime() - start;
+  // outputfile << "DBSCAN (total) took " << time << " seconds." << endl;
+  cout << "DBSCAN (total) took " << time << " seconds." << endl;
   dbs.writeClusters_uf(outputfile);
   outputfile << endl;
-  
+
+
   outputfile.close();
   /*if(outfilename != NULL)
   {
