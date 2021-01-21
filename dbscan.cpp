@@ -93,17 +93,38 @@ namespace NWUClustering {
     clusters.clear();
   }
 
+  void ClusteringAlgo::getGrowingPoints(vector<int>& growing_points, int sch, int tid) {
+    int sid;
+    kdtree2_result_vector ne;
+    vector<int>* ind = m_kdtree->getIndex(); // Sets a vector that contains the index of all points
+    srand(time(NULL));
+
+    for(int h=0; h < m_seeds; h++) {
+      //this loop initializes first n growing points randomly
+      do {
+        sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
+      } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()));
+      //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
+      m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
+      if(ne.size() >= m_minPts) {
+        growing_points.push_back(sid); // adds the point to the growing points vector
+        m_member[sid] = 1; // marks the point as a member of a cluster
+      } 
+      ne.clear();
+    }
+  }
+
   // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
 
   void run_dbscan_algo_uf(ClusteringAlgo& dbs) {     
     
-    int tid, i, pid, j, k, npid, root, root1, root2, sid, h, qualitypoints=0, test=0;
-    srand(time(NULL));
+    int tid, i, pid, j, k, npid, root, root1, root2, sid, h, test=0;
+    vector <int> growing_points;
+    // srand(time(NULL));
 
     // initialize some parameters
     dbs.m_clusters.clear();
-    
-    vector <int> growing_points;
+  
     kdtree2_result_vector ne;
     kdtree2_result_vector ne2;
     // assign parent to itestf
@@ -131,7 +152,7 @@ namespace NWUClustering {
     double start = omp_get_wtime();
     // cout<< endl;
 
-    #pragma omp parallel private(root, root1, root2, tid, ne, ne2, npid, i, j, pid, growing_points, sid) shared(sch, ind, h, test, qualitypoints) //, prID) // creates threads
+    #pragma omp parallel private(root, root1, root2, tid, ne, ne2, npid, i, j, pid, growing_points, sid) shared(sch, ind, h, test) //, prID) // creates threads
     // private means that each thread will have its own private copy of variable in memory
     // shared means that all threads will share same copy of variable in memory
     {
@@ -151,23 +172,10 @@ namespace NWUClustering {
       
       //#pragma omp parallel for
       #pragma omp barrier
-      #pragma omp for
-
-      for(h=0; h < (dbs.m_seeds); h++) {
-        //this loop initializes first n growing points randomly
-        do {
-          sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
-        } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()));
-        //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
-        dbs.m_kdtree->r_nearest_around_point(sid, 0, dbs.m_epsSquare, ne);
-        if(ne.size() >= dbs.m_minPts) {
-          qualitypoints++;
-          growing_points.push_back(sid); // adds the point to the growing points vector
-          dbs.m_member[sid] = 1; // marks the point as a member of a cluster
-        } 
-        // tid is the thread number, and sid is the index of the point
-        //dbs.m_corepoint
-      }
+      #pragma omp parallel
+        dbs.getGrowingPoints(growing_points, sch, tid);
+      // #pragma omp for
+      // // TODO seed points here
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
@@ -202,31 +210,32 @@ namespace NWUClustering {
               
           if(ne2.size() >= dbs.m_minPts) {
             // REMS algorithm to merge the trees
-            while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
-              if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
-                if(dbs.m_parents[root1] == root1) { //if point is the root
-                  dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
-                  root = dbs.m_parents[root2]; //sets root to be the parent of root2
-                  break; // root has been found. Break from the loop
-                }
-                // splicing
-                // if not at the root, then set root 1 equal to the parent. Advance up the tree
-                int z = dbs.m_parents[root1]; //creates temporary variable
-                dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
-                root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
-              } else {
-                //root2 < root 1
-                if(dbs.m_parents[root2] == root2) { //if point is the root else
-                  dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
-                  root = dbs.m_parents[root1]; //sets root to be the parent of root1
-                  break; //root has been found. Break from loop
-                }
-                // splicing
-                int z = dbs.m_parents[root2]; //creates temporary variable
-                dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
-                root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
-              }
-            } // end of while loop that checks to see if the parents are equal
+            unionize_neighborhood(dbs, root, root1, root2);
+            // while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
+            //   if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
+            //     if(dbs.m_parents[root1] == root1) { //if point is the root
+            //       dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
+            //       root = dbs.m_parents[root2]; //sets root to be the parent of root2
+            //       break; // root has been found. Break from the loop
+            //     }
+            //     // splicing
+            //     // if not at the root, then set root 1 equal to the parent. Advance up the tree
+            //     int z = dbs.m_parents[root1]; //creates temporary variable
+            //     dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
+            //     root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
+            //   } else {
+            //     //root2 < root 1
+            //     if(dbs.m_parents[root2] == root2) { //if point is the root else
+            //       dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
+            //       root = dbs.m_parents[root1]; //sets root to be the parent of root1
+            //       break; //root has been found. Break from loop
+            //     }
+            //     // splicing
+            //     int z = dbs.m_parents[root2]; //creates temporary variable
+            //     dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
+            //     root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
+            //   }
+            // } // end of while loop that checks to see if the parents are equal
 
             if(dbs.m_member[npid] == 0) {
               //check to see if the point belongs to a cluster and if not, add to growing_points and mark as clustered
@@ -241,31 +250,32 @@ namespace NWUClustering {
             if(dbs.m_member[npid] == 0) {
               //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
               dbs.m_member[npid] == 1;
-              while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
-                if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
-                  if(dbs.m_parents[root1] == root1) { //if point is the root
-                    dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
-                    root = dbs.m_parents[root2]; //sets root to be the parent of root2
-                    break; // root has been found. Break from the loop
-                  }
-                  // splicing
-                  // if not at the root, then set root 1 equal to the parent. Advance up the tree
-                  int z = dbs.m_parents[root1]; //creates temporary variable
-                  dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
-                  root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
-                } else {
-                  //root2 < root 1
-                  if(dbs.m_parents[root2] == root2) { //if point is the root
-                    dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
-                    root = dbs.m_parents[root1]; //sets root to be the parent of root1
-                    break; //root has been found. Break from loop
-                  }
-                  // splicing
-                  int z = dbs.m_parents[root2]; //creates temporary variable
-                  dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
-                  root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
-                } 
-              }
+              unionize_neighborhood(dbs, root, root1, root2)
+              // while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
+              //   if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
+              //     if(dbs.m_parents[root1] == root1) { //if point is the root
+              //       dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
+              //       root = dbs.m_parents[root2]; //sets root to be the parent of root2
+              //       break; // root has been found. Break from the loop
+              //     }
+              //     // splicing
+              //     // if not at the root, then set root 1 equal to the parent. Advance up the tree
+              //     int z = dbs.m_parents[root1]; //creates temporary variable
+              //     dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
+              //     root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
+              //   } else {
+              //     //root2 < root 1
+              //     if(dbs.m_parents[root2] == root2) { //if point is the root
+              //       dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
+              //       root = dbs.m_parents[root1]; //sets root to be the parent of root1
+              //       break; //root has been found. Break from loop
+              //     }
+              //     // splicing
+              //     int z = dbs.m_parents[root2]; //creates temporary variable
+              //     dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
+              //     root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
+              //   } 
+              // }
             }
           } // end of else if statement checking to see if it hasn't been clustered yet
         } // end of for loop that goes through all nearest neighbors
@@ -278,7 +288,7 @@ namespace NWUClustering {
     // merge the trees that have not been merged yet
     double stop = omp_get_wtime() ;
     cout  <<  endl;
-    cout << "Quality points: " << qualitypoints << endl;
+    // cout << "Quality points: " << dbs.qualitypoints << endl;
     cout << "Local computation took " << stop - start << " seconds." << endl;
     //allocate and initiate locks
     omp_lock_t *nlocks;
@@ -447,5 +457,45 @@ namespace NWUClustering {
     ind = NULL;
     ne.clear();
     ne2.clear();
+  }
+
+  /*
+    called in `run_dbscan_algo_uf` function.
+    Only called if the amount of points found are equal to, or greater than, the minimum points
+    needed to make a cluster. 
+    The points are joined via a union opperation using the REMS algorithm.
+
+    ClusteringAlgo& dbs - DBScan object. The parent for EVERYTHING.
+    int root - initially set to pid
+    int root1 - used to find the actual "root" node
+    int root2 - used to find the actual "root" node
+  */
+  void unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2) {
+
+    while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
+      if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
+        if(dbs.m_parents[root1] == root1) { //if point is the root
+          dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
+          root = dbs.m_parents[root2]; //sets root to be the parent of root2
+          break; // root has been found. Break from the loop
+        }
+        // splicing
+        // if not at the root, then set root 1 equal to the parent. Advance up the tree
+        int z = dbs.m_parents[root1]; //creates temporary variable
+        dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
+        root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
+      } else {
+        //root2 < root 1
+        if(dbs.m_parents[root2] == root2) { //if point is the root else
+          dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
+          root = dbs.m_parents[root1]; //sets root to be the parent of root1
+          break; //root has been found. Break from loop
+        }
+        // splicing
+        int z = dbs.m_parents[root2]; //creates temporary variable
+        dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
+        root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
+      }
+    } // end of while loop that checks to see if the parents are equal
   }
 };

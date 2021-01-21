@@ -23,6 +23,8 @@ namespace NWUClustering {
       void writeClusters(ostream& o); // regular dbscan algorithm
       void writeClusters_uf(ostream& o); // union find dbscan algorithm
 
+      void getGrowingPoints(vector<int>& growing_points, int sch, int tid);
+
     public:
 
       // parameters to run dbscan algorithm
@@ -30,6 +32,8 @@ namespace NWUClustering {
       double  m_epsSquare;
       int   m_minPts;
       int m_seeds;
+
+      // int qualitypoints;
 
       //int     m_parcent_of_data;
       // noise vector
@@ -43,10 +47,13 @@ namespace NWUClustering {
       vector <int> m_corepoint;
       vector <int> m_member;
 
+      // vector <int> growing_points;
+
   };  
 
   void run_dbscan_algo_uf(ClusteringAlgo& dbs); // union find dbscan algorithm
   void run_dbscan_algo(ClusteringAlgo& dbs); // regular dbscan algorithm
+  void unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2);
 
 };
 
