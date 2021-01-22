@@ -17,6 +17,7 @@ static void usage(char *argv0) {
   fprintf(stderr, params, argv0);
   exit(-1);
   }
+  
 int main(int argc, char** argv) {
 
   double  seconds;
@@ -78,24 +79,21 @@ int main(int argc, char** argv) {
   
   omp_set_num_threads(threads);
   NWUClustering::ClusteringAlgo dbs;
-  cout << "Input parameters " << " MinPts " << minPts << " Epsilon " << eps << endl;
-  double start;
-  cout << "Dataset used: " << infilename << endl;
-  ofstream outputfile;
-  outputfile.open("runs.txt");
-  double time;
-  
   dbs.set_dbscan_params(eps, minPts, seeds);
   if(dbs.read_file(infilename, isBinaryFile) == -1)
     exit(-1);
 
+  cout << "Input parameters " << " MinPts " << minPts << " Epsilon " << eps << endl;
+  cout << "Dataset used: " << infilename << endl;
+  ofstream outputfile;
+  outputfile.open("runs.txt");
+  
   cout << "Dimensions of each point: " << dbs.m_pts->m_i_dims << endl;
   dbs.build_kdtree();
-  start = omp_get_wtime();
+  double start = omp_get_wtime();
   run_dbscan_algo_uf(dbs);
-  time = omp_get_wtime() - start;
   // outputfile << "DBSCAN (total) took " << time << " seconds." << endl;
-  cout << "DBSCAN (total) took " << time << " seconds." << endl;
+  cout << "DBSCAN (total) took " << omp_get_wtime() - start << " seconds." << endl;
   dbs.writeClusters_uf(outputfile);
   outputfile << endl;
 
