@@ -4,7 +4,7 @@
 #include <iterator>
 #include <algorithm>
 #include <vector>
- 
+
 namespace NWUClustering {
 
   void ClusteringAlgo::set_dbscan_params(double eps, int minPts, int seeds) {
