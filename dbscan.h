@@ -53,7 +53,7 @@ namespace NWUClustering {
 
   void run_dbscan_algo_uf(ClusteringAlgo& dbs); // union find dbscan algorithm
   void run_dbscan_algo(ClusteringAlgo& dbs); // regular dbscan algorithm
-
+  void unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2, bool locks, omp_lock_t* actualLock);
 };
 
 

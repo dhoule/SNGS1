@@ -24,7 +24,8 @@ namespace NWUClustering {
   void ClusteringAlgo::writeClusters(ostream& o) {
     // writing point id and cluster id pairs per line, noise has cluster id 0 
     int iMaxID = m_clusters.size(), id, i, j;
-    for(i = 0; i < m_pts->m_i_num_points; i++) {
+    int num_points = m_pts->m_i_num_points;
+    for(i = 0; i < num_points; i++) {
       //for (j = 0; j < m_pts->m_i_dims; j++)
       //  o << " " << m_pts->m_points[i][j];
       id = m_pid_to_cid[i];
@@ -36,7 +37,7 @@ namespace NWUClustering {
       sum_points += m_clusters[i].size();
       //cout << i << "(" << m_clusters[i].size() << ") ";
     }
-    for (i = 0; i < m_pts->m_i_num_points; i++) {
+    for (i = 0; i < num_points; i++) {
       if(m_noise[i])
         noise++;
     } 
@@ -48,9 +49,10 @@ namespace NWUClustering {
     //changed return type to int. Was void. Used for testing purposes
     // writing point id and cluster id pairs per line, noise has cluster id 0 
     vector <int> clusters;
-    clusters.resize(m_pts->m_i_num_points, 0);
+    int num_points = m_pts->m_i_num_points;
+    clusters.resize(num_points, 0);
     int i, j, sum_points = 0, noise = 0, root, rootcount = 0, tmp;
-    for(i = 0; i < m_pts->m_i_num_points; i++) {
+    for(i = 0; i < num_points; i++) {
       root = m_parents[i];
       // get the number of trees
       if(i == m_parents[i])
@@ -69,7 +71,7 @@ namespace NWUClustering {
     }
     //cout << "clusters" << endl;
     int count = 0;
-    for(i = 0; i < m_pts->m_i_num_points; i++) {
+    for(i = 0; i < num_points; i++) {
       if(clusters[i] == 1) {
         // vertex i is a noise
         clusters[i] = 0;
@@ -83,7 +85,7 @@ namespace NWUClustering {
         // cout << clusters[i] << ": " << i << endl;
       }
     }
-    // for(i = 0; i < m_pts->m_i_num_points; i++) {
+    // for(i = 0; i < num_points; i++) {
     //   o << i << " " << clusters[m_parents[i]] << endl; //This was the only one not commented out
     // }
     cout << "Points in clusters " << sum_points << " Noise " << noise << " Total points " << noise + sum_points << endl;
@@ -115,9 +117,11 @@ namespace NWUClustering {
   }
 
   // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
+
   void run_dbscan_algo_uf(ClusteringAlgo& dbs) {     
     
     int tid, i, pid, j, k, npid, root, root1, root2, sid, h, test=0;
+    int num_points = dbs.m_pts->m_i_num_points;
     vector <int> growing_points;
     // srand(time(NULL));
 
@@ -127,26 +131,26 @@ namespace NWUClustering {
     kdtree2_result_vector ne;
     kdtree2_result_vector ne2;
     // assign parent to itestf
-    dbs.m_parents.resize(dbs.m_pts->m_i_num_points, -1);
+    dbs.m_parents.resize(num_points, -1);
 
-    dbs.m_member.resize(dbs.m_pts->m_i_num_points, 0);
-    dbs.m_corepoint.resize(dbs.m_pts->m_i_num_points, 0);
+    dbs.m_member.resize(num_points, 0);
+    dbs.m_corepoint.resize(num_points, 0);
     int sch, maxthreads = omp_get_max_threads(); //maximum number of threads available to do work 
     
-    if(dbs.m_pts->m_i_num_points % maxthreads == 0)
-      sch = dbs.m_pts->m_i_num_points/maxthreads;
+    if(num_points % maxthreads == 0)
+      sch = num_points/maxthreads;
     else
-      sch = dbs.m_pts->m_i_num_points/maxthreads + 1;
+      sch = num_points/maxthreads + 1;
 
     vector < vector <int > > merge; //initializes two dimensional vector. A vector that holds int vectors
     vector <int> init;
     merge.resize(maxthreads, init); // Merge has a size of maxthreads and each element is initialized with the vector init.
     
     for(tid = 0; tid < maxthreads; tid++)
-      merge[tid].reserve(dbs.m_pts->m_i_num_points); // ensures that each init vector can hold at least m_i_num_points
+      merge[tid].reserve(num_points); // ensures that each init vector can hold at least m_i_num_points
     
     vector < int > prID;
-    prID.resize(dbs.m_pts->m_i_num_points, -1); // initializes prID vector with a size of m_i_num_points and intializes each element with -1
+    prID.resize(num_points, -1); // initializes prID vector with a size of m_i_num_points and intializes each element with -1
     vector<int>* ind = dbs.m_kdtree->getIndex(); // Sets a vector that contains the index of all points
     double start = omp_get_wtime();
     // cout<< endl;
@@ -159,8 +163,8 @@ namespace NWUClustering {
       tid = omp_get_thread_num(); // gets tid of each thread to identify it
       lower = sch * tid;  //The range of points that each thread has. Sch is number of points per thread
       upper = sch * (tid + 1);
-      if(upper > dbs.m_pts->m_i_num_points)
-        upper = dbs.m_pts->m_i_num_points;
+      if(upper > num_points)
+        upper = num_points;
 
       for(i = lower; i < upper; i++) {
         pid = (*ind)[i]; // CAN TRY RANDOMLY SELECTING
@@ -173,9 +177,6 @@ namespace NWUClustering {
       #pragma omp barrier
       #pragma omp parallel
         dbs.getGrowingPoints(growing_points, sch, tid);
-      // #pragma omp for
-      // // TODO seed points here
-
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
@@ -210,31 +211,8 @@ namespace NWUClustering {
               
           if(ne2.size() >= dbs.m_minPts) {
             // REMS algorithm to merge the trees
-            while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
-              if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
-                if(dbs.m_parents[root1] == root1) { //if point is the root
-                  dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
-                  root = dbs.m_parents[root2]; //sets root to be the parent of root2
-                  break; // root has been found. Break from the loop
-                }
-                // splicing
-                // if not at the root, then set root 1 equal to the parent. Advance up the tree
-                int z = dbs.m_parents[root1]; //creates temporary variable
-                dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
-                root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
-              } else {
-                //root2 < root 1
-                if(dbs.m_parents[root2] == root2) { //if point is the root else
-                  dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
-                  root = dbs.m_parents[root1]; //sets root to be the parent of root1
-                  break; //root has been found. Break from loop
-                }
-                // splicing
-                int z = dbs.m_parents[root2]; //creates temporary variable
-                dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
-                root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
-              }
-            } // end of while loop that checks to see if the parents are equal
+            omp_lock_t* fakeLocks;
+            unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks);
 
             if(dbs.m_member[npid] == 0) {
               //check to see if the point belongs to a cluster and if not, add to growing_points and mark as clustered
@@ -249,31 +227,8 @@ namespace NWUClustering {
             if(dbs.m_member[npid] == 0) {
               //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
               dbs.m_member[npid] == 1;
-              while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
-                if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
-                  if(dbs.m_parents[root1] == root1) { //if point is the root
-                    dbs.m_parents[root1] = dbs.m_parents[root2]; //Sets the parent of root1 to be the parent of root2
-                    root = dbs.m_parents[root2]; //sets root to be the parent of root2
-                    break; // root has been found. Break from the loop
-                  }
-                  // splicing
-                  // if not at the root, then set root 1 equal to the parent. Advance up the tree
-                  int z = dbs.m_parents[root1]; //creates temporary variable
-                  dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
-                  root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
-                } else {
-                  //root2 < root 1
-                  if(dbs.m_parents[root2] == root2) { //if point is the root
-                    dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
-                    root = dbs.m_parents[root1]; //sets root to be the parent of root1
-                    break; //root has been found. Break from loop
-                  }
-                  // splicing
-                  int z = dbs.m_parents[root2]; //creates temporary variable
-                  dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1      
-                  root2 = z;//sets root2 to be the parent of root 2. Advance up the tree in order to find the root
-                } 
-              }
+              omp_lock_t* fakeLocks;
+              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks);
             }
           } // end of else if statement checking to see if it hasn't been clustered yet
         } // end of for loop that goes through all nearest neighbors
@@ -290,11 +245,11 @@ namespace NWUClustering {
     cout << "Local computation took " << stop - start << " seconds." << endl;
     //allocate and initiate locks
     omp_lock_t *nlocks;
-    nlocks = (omp_lock_t *) malloc(dbs.m_pts->m_i_num_points*sizeof(omp_lock_t)); // Initialize nlocks array for every data point
+    nlocks = (omp_lock_t *) malloc(num_points*sizeof(omp_lock_t)); // Initialize nlocks array for every data point
     //start = stop;
     start = omp_get_wtime();
     #pragma omp parallel for private(i) shared(nlocks)
-      for(i = 0; i < dbs.m_pts->m_i_num_points; i++) 
+      for(i = 0; i < num_points; i++) 
         omp_init_lock(&nlocks[i]); // initialize locks
 
     #pragma omp parallel for shared(maxthreads, merge, nlocks, test2) private(i, v1, v2, root1, root2, size, tid, ne3) // allows for the spawned threads to split up the loop iterations
@@ -324,43 +279,7 @@ namespace NWUClustering {
             root1 = v1;
             root2 = v2;
             // REMS algorithm with splicing compression techniques
-            while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
-              if (dbs.m_parents[root1] < dbs.m_parents[root2]) {
-                if(dbs.m_parents[root1] == root1) { // root1 is a root
-                  omp_set_lock(&nlocks[root1]);
-                  int p_set = false;
-                  if(dbs.m_parents[root1] == root1) { // if root1 is still a root after lock has been set
-                    dbs.m_parents[root1] = dbs.m_parents[root2];
-                    p_set = true;
-                  }
-                  omp_unset_lock(&nlocks[root1]);
-                  if (p_set) // merge successful
-                    break;
-                }
-                // splicing
-                int z = dbs.m_parents[root1];
-                dbs.m_parents[root1] = dbs.m_parents[root2];
-                root1 = z;
-                // root1 = dbs.m_parents[root1];
-              } else {
-                if(dbs.m_parents[root2] == root2) { // root2 is a root
-                  omp_set_lock(&nlocks[root2]);
-                  int p_set = false;
-                  if(dbs.m_parents[root2] == root2) { // check if root2 is a root
-                    dbs.m_parents[root2] = dbs.m_parents[root1];
-                    p_set = true;
-                  }
-                  omp_unset_lock(&nlocks[root2]);
-                  if (p_set) // merge successful
-                    break;
-                }
-                //splicing
-                int z = dbs.m_parents[root2];
-                dbs.m_parents[root2] = dbs.m_parents[root1];
-                root2 = z;
-                //root2 = dbs.m_parents[root2];
-              } 
-            }
+            unionize_neighborhood(dbs, -42, root1, root2, true, nlocks);
           }
         }
       }
@@ -369,16 +288,7 @@ namespace NWUClustering {
     free(nlocks);
     //cout << "Merging neighborhood searches: " << test2 << endl;
     cout << "Merging took " << stop - start << " seconds."<< endl;
-    //cout << "Number of Neighborhood searches: " << test << endl;
-    //  ofstream output;
-    //  output.open("bestrun.txt")
-    //  current_time = start_total - stop_total;
-    //  output << "Number of seeds is " << n << endl;
-    //  output << "Total time took " << current_time << " seconds" << endl << endl;
-    //  if(current_time < min_time){
-    //    min_time = current_time;
-    //    best_n = n;
-    //  }
+
     for(tid = 0; tid < maxthreads; tid++)
       merge[tid].clear();
 
@@ -392,23 +302,24 @@ namespace NWUClustering {
     // classical DBSCAN algorithm (only sequential)
     int i, pid, j, k, npid;
     int cid = 1; // cluster id
+    int num_points = dbs.m_pts->m_i_num_points;
     vector <int> c;
-    c.reserve(dbs.m_pts->m_i_num_points);
+    c.reserve(num_points);
     // initialize some parameters
-    dbs.m_noise.resize(dbs.m_pts->m_i_num_points, false);
-    dbs.m_visited.resize(dbs.m_pts->m_i_num_points, false);   
-    dbs.m_pid_to_cid.resize(dbs.m_pts->m_i_num_points, 0);
+    dbs.m_noise.resize(num_points, false);
+    dbs.m_visited.resize(num_points, false);   
+    dbs.m_pid_to_cid.resize(num_points, 0);
     dbs.m_clusters.clear();
     // get the neighbor of the first point and print them
     //cout << "DBSCAN ALGORITHMS============================" << endl;
     kdtree2_result_vector ne;
     kdtree2_result_vector ne2;
     //kdtree2_result_vector ne3;
-    ne.reserve(dbs.m_pts->m_i_num_points);
-    ne2.reserve(dbs.m_pts->m_i_num_points);
+    ne.reserve(num_points);
+    ne2.reserve(num_points);
     vector<int>* ind = dbs.m_kdtree->getIndex();
     double start = omp_get_wtime() ;    
-    for(i = 0; i < dbs.m_pts->m_i_num_points; i++) {
+    for(i = 0; i < num_points; i++) {
       pid = (*ind)[i];
       if (!dbs.m_visited[pid]) {
         dbs.m_visited[pid] = true;
@@ -455,5 +366,71 @@ namespace NWUClustering {
     ind = NULL;
     ne.clear();
     ne2.clear();
+  }
+
+  /*
+    called in `run_dbscan_algo_uf` function.
+    Only called if the amount of points found are equal to, or greater than, the minimum points
+    needed to make a cluster. 
+    The points are joined via a union opperation using the REMS algorithm.
+
+    ClusteringAlgo& dbs - DBScan object. The parent for EVERYTHING.
+    int root - initially set to pid
+    int root1 - used to find the actual "root" node
+    int root2 - used to find the actual "root" node
+    bool locks - flag to determine if locks are to be used or not
+    omp_lock_t* actualLock - the actual lock to use if `locks` is set to TRUE. It's a useless variable if `locks` is FALSE.
+  */
+  void unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2, bool locks, omp_lock_t* actualLock) {
+  
+    while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
+      if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
+        if(dbs.m_parents[root1] == root1) { //if point is the root
+          if(locks) {
+            omp_set_lock(&actualLock[root1]);
+            int p_set = false;
+            if(dbs.m_parents[root1] == root1) { // if root1 is still a root after lock has been set
+              dbs.m_parents[root1] = dbs.m_parents[root2];
+              p_set = true;
+            }
+            omp_unset_lock(&actualLock[root1]);
+            if (p_set) // merge successful
+              break;
+          } else {
+            dbs.m_parents[root1] = dbs.m_parents[root2]; // Sets the parent of root1 to be the parent of root2
+            root = dbs.m_parents[root2]; // sets root to be the parent of root2
+            break; // root has been found. Break from the loop
+          }
+        }
+        // splicing
+        // if not at the root, then set root 1 equal to the parent. Advance up the tree
+        int z = dbs.m_parents[root1]; //creates temporary variable
+        dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
+        root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
+      } else {
+        //root2 < root 1
+        if(dbs.m_parents[root2] == root2) { //if point is the root else
+          if(locks) {
+            omp_set_lock(&actualLock[root2]);
+            int p_set = false;
+            if(dbs.m_parents[root2] == root2) { // check if root2 is a root
+              dbs.m_parents[root2] = dbs.m_parents[root1];
+              p_set = true;
+            }
+            omp_unset_lock(&actualLock[root2]);
+            if (p_set) // merge successful
+              break;
+          } else {
+            dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
+            root = dbs.m_parents[root1]; //sets root to be the parent of root1
+            break; //root has been found. Break from loop
+          }
+        }
+        // splicing
+        int z = dbs.m_parents[root2]; //creates temporary variable
+        dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1  
+        root2 = z; //sets root2 to be the parent of root 2. Advance up the tree in order to find the root
+      }
+    } // end of while loop that checks to see if the parents are equal
   }
 };
