@@ -101,28 +101,42 @@ namespace NWUClustering {
     kdtree2_result_vector ne;
     vector<int>* ind = m_kdtree->getIndex(); // Sets a vector that contains the index of all points
     vector<int> alreadySeen;
+    bool allPoints = false;
     srand(time(NULL));
 
-    if(number_looking_for > (upper - lower))
+    if(number_looking_for >= (upper - lower)) {
       number_looking_for = (upper - lower);
-
-    for(int h=0; h < number_looking_for; h++) {
-      //this loop initializes first n growing points randomly
-      do {
-        sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
-        // `sid` shoulg NOT be in `growing_points` AND should NOT have already been seen.
-      } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()) ||
-                find(alreadySeen.begin(), alreadySeen.end(), sid) != alreadySeen.end());
-
-      //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
-      m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
-      if(ne.size() >= m_minPts) {
-        growing_points.push_back(sid); // adds the point to the growing points vector
-        m_member[sid] = 1; // marks the point as a member of a cluster
-      } else {
+      allPoints = true;
+    }
+    if(allPoints) {
+      for(int h=0; h < number_looking_for; h++) {
+        sid = (*ind)[h];
+        m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
+        if(ne.size() >= m_minPts) {
+          growing_points.push_back(sid); // adds the point to the growing points vector
+          m_member[sid] = 1; // marks the point as a member of a cluster
+        }
         alreadySeen.push_back(sid);
+        ne.clear();
       }
-      ne.clear();
+    } else {
+
+      for(int h=0; h < number_looking_for; h++) {
+        //this loop initializes first n growing points randomly
+        do {
+          sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
+          // `sid` shoulg NOT be in `growing_points` AND should NOT have already been seen.
+        } while (find(alreadySeen.begin(), alreadySeen.end(), sid) != alreadySeen.end());
+
+        //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
+        m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
+        if(ne.size() >= m_minPts) {
+          growing_points.push_back(sid); // adds the point to the growing points vector
+          m_member[sid] = 1; // marks the point as a member of a cluster
+        }
+        alreadySeen.push_back(sid);
+        ne.clear();
+      }
     }
     alreadySeen.clear();
   }
