@@ -76,7 +76,8 @@ namespace NWUClustering {
         // vertex i is a noise
         clusters[i] = 0;
         noise++;
-      } else if(clusters[i] >= m_minPts) {
+      // } else if(clusters[i] >= m_minPts) { TODO
+      } else if(clusters[i] > 1) {
         // This conditional statement determines what is and is not considered a cluster
         // If it's greater than this number than it will be counted as a cluster
         count++;
@@ -95,25 +96,35 @@ namespace NWUClustering {
     clusters.clear();
   }
 
-  void ClusteringAlgo::getGrowingPoints(vector<int>& growing_points, int sch, int tid) {
-    int sid;
+  void ClusteringAlgo::getGrowingPoints(vector<int>& growing_points, int sch, int tid, int lower, int upper) {
+    int sid, number_looking_for = m_seeds;
     kdtree2_result_vector ne;
     vector<int>* ind = m_kdtree->getIndex(); // Sets a vector that contains the index of all points
+    vector<int> alreadySeen;
     srand(time(NULL));
 
-    for(int h=0; h < m_seeds; h++) {
+    if(number_looking_for > (upper - lower))
+      number_looking_for = (upper - lower);
+
+    for(int h=0; h < number_looking_for; h++) {
       //this loop initializes first n growing points randomly
       do {
         sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
-      } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()));
+        // `sid` shoulg NOT be in `growing_points` AND should NOT have already been seen.
+      } while ((find(growing_points.begin(), growing_points.end(), sid) != growing_points.end()) ||
+                find(alreadySeen.begin(), alreadySeen.end(), sid) != alreadySeen.end());
+
       //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
       m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
       if(ne.size() >= m_minPts) {
         growing_points.push_back(sid); // adds the point to the growing points vector
         m_member[sid] = 1; // marks the point as a member of a cluster
-      } 
+      } else {
+        alreadySeen.push_back(sid);
+      }
       ne.clear();
     }
+    alreadySeen.clear();
   }
 
   // A cluster is determined by the root node. However many root nodes there are, that's how many clusters there are
@@ -176,16 +187,15 @@ namespace NWUClustering {
       //#pragma omp parallel for
       #pragma omp barrier
       #pragma omp parallel
-        dbs.getGrowingPoints(growing_points, sch, tid);
+        dbs.getGrowingPoints(growing_points, sch, tid, lower, upper);
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
 
       for(int i = 0; i < growing_points.size(); i++) { // Iterates through every growing point
-        
-        dbs.m_corepoint[i] = 1;
         //test += 1;
         pid = growing_points[i];
+        dbs.m_corepoint[pid] = 1;
         ne.clear();
         dbs.m_kdtree->r_nearest_around_point(pid, 0, dbs.m_epsSquare, ne); // gets nearest neighbors
         test += 1;     
@@ -260,10 +270,11 @@ namespace NWUClustering {
           v2 = merge[tid][2 * i + 1]; // v2 = odd numbered elements
           int con = 0;
 
-          dbs.m_kdtree->r_nearest_around_point(v2, 0, dbs.m_epsSquare, ne3);
+          // dbs.m_kdtree->r_nearest_around_point(v2, 0, dbs.m_epsSquare, ne3); TODO commented this out. It's not in orriginal code
           test2 += 1;
         
-          if(ne3.size() >= dbs.m_minPts)
+          // if(ne3.size() >= dbs.m_minPts) TODO
+          if(dbs.m_corepoint[v2] == 1)
             con = 1;
           else if(dbs.m_member[v2] == 0) {
             omp_set_lock(&nlocks[v2]);
