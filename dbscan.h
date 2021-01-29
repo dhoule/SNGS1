@@ -23,7 +23,7 @@ namespace NWUClustering {
       void writeClusters(ostream& o); // regular dbscan algorithm
       void writeClusters_uf(ostream& o); // union find dbscan algorithm
 
-      void getGrowingPoints(vector<int>& growing_points, int sch, int tid);
+      void getGrowingPoints(vector<int>& growing_points, int sch, int tid, int lower, int upper);
 
     public:
 
