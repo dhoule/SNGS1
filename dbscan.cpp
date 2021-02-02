@@ -96,6 +96,16 @@ namespace NWUClustering {
     clusters.clear();
   }
 
+  /*
+    Determines the initial seed points to be used in a pseudo-random fashion. If all of the points in a thread
+    are to be used, the points are inspected linearally to speed up the execution time. 
+
+    vector<int>& growing_points - Vector that will hold the seed points for each thread.
+    int sch - the total number number of points per thread
+    int tid - the thread ID number
+    int lower - the lower-bound index to read the points
+    int upper - the upper-bound index to read the points
+  */
   void ClusteringAlgo::getGrowingPoints(vector<int>& growing_points, int sch, int tid, int lower, int upper) {
     int sid, number_looking_for = m_seeds;
     kdtree2_result_vector ne;
@@ -109,6 +119,7 @@ namespace NWUClustering {
       allPoints = true;
     }
     if(allPoints) {
+      // if all points are to be searched, no point in pseudo-randomly picking them
       for(int h=0; h < number_looking_for; h++) {
         sid = (*ind)[h];
         m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
@@ -125,15 +136,16 @@ namespace NWUClustering {
         //this loop initializes first n growing points randomly
         do {
           sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
-          // `sid` shoulg NOT be in `growing_points` AND should NOT have already been seen.
+          // `sid` should NOT have already been seen.
         } while (find(alreadySeen.begin(), alreadySeen.end(), sid) != alreadySeen.end());
 
-        //repeats the do while loop if it is not a core point or the point has already been selected as a growing point
+        // Check if the new point is a core point, and if so add it to `growing_points`
         m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
         if(ne.size() >= m_minPts) {
           growing_points.push_back(sid); // adds the point to the growing points vector
           m_member[sid] = 1; // marks the point as a member of a cluster
         }
+        // no matter what, add `sid` to `alreadySeen` and clear out `ne` vector
         alreadySeen.push_back(sid);
         ne.clear();
       }
@@ -166,7 +178,7 @@ namespace NWUClustering {
       sch = num_points/maxthreads;
     else
       sch = num_points/maxthreads + 1;
-
+    // TODO bottom 5 lines deal with line 9 of pseudocode
     vector < vector <int > > merge; //initializes two dimensional vector. A vector that holds int vectors
     vector <int> init;
     merge.resize(maxthreads, init); // Merge has a size of maxthreads and each element is initialized with the vector init.
@@ -193,37 +205,38 @@ namespace NWUClustering {
 
       for(i = lower; i < upper; i++) {
         pid = (*ind)[i]; // CAN TRY RANDOMLY SELECTING
-        dbs.m_parents[pid] = pid;  // Initialize parents to point to themselves
+        dbs.m_parents[pid] = pid;  // Initialize parents to point to themselves  TODO line 5 of pseudocode
         prID[pid] = tid; //sets each element in prID to the thread number. 
       }
       
       //#pragma omp parallel for
       #pragma omp barrier
       #pragma omp parallel
-        dbs.getGrowingPoints(growing_points, sch, tid, lower, upper);
+        dbs.getGrowingPoints(growing_points, sch, tid, lower, upper); // Each thread gets its seed points  TODO line 7 of pseudocode
 
       if(tid == 0) cout << "before growing_points: " << growing_points.size() << endl;
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
 
-      for(int i = 0; i < growing_points.size(); i++) { // Iterates through every growing point
+      for(int i = 0; i < growing_points.size(); i++) { // Iterates through every growing point  TODO line 10 of pseudocode
         
         pid = growing_points[i];
         dbs.m_corepoint[pid] = 1;
         ne.clear();
-        dbs.m_kdtree->r_nearest_around_point(pid, 0, dbs.m_epsSquare, ne); // gets nearest neighbors
+        dbs.m_kdtree->r_nearest_around_point(pid, 0, dbs.m_epsSquare, ne); // gets nearest neighbors  TODO line 11 of pseudocode
             
         dbs.m_member[pid] = 1; // mark as a member
         // get the root containing pid
         root = pid;
-        for (j = 0; j < ne.size(); j++) {
+        for (j = 0; j < ne.size(); j++) { // TODO line 12 of pseudocode
           //this loop goes through all of nearest neighbors of a point
-          npid= ne[j].idx; // gets index of ne[j]
+          npid= ne[j].idx; // gets index of ne[j] TODO line 13 of pseudocode
           if(npid == pid)
             continue;
           //cout << "prID: " << prID[npid] << " tid: " << tid << endl;
           if(prID[npid] != tid) { // this checks to see if the two points are in the same thread. If not, add them to merge
+            // TODO line 28 of pseudocode
             merge[tid].push_back(pid); // The two points gets added to the end of the merge vector and will be merged later
             merge[tid].push_back(npid);
             continue; // goes to end of for loop
@@ -234,26 +247,28 @@ namespace NWUClustering {
           ne2.clear();
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
               
-          if(ne2.size() >= dbs.m_minPts) {
+          if(ne2.size() >= dbs.m_minPts) { // TODO line 17 of pseudocode
 
+            // REMS algorithm to merge the trees
+            omp_lock_t* fakeLocks;
+            unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 18 of pseudocode
+            
             if(dbs.m_member[npid] == 0) {
               //check to see if the point belongs to a cluster and if not, add to growing_points and mark as clustered
-              dbs.m_member[npid] == 1;
-              // REMS algorithm to merge the trees
-              omp_lock_t* fakeLocks;
-              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks);
+              dbs.m_member[npid] == 1; // TODO line 20 of pseudocode
+              
               // Also check to see if it has already been added to the growing points vector
               if(find(growing_points.begin(), growing_points.end(), npid) == growing_points.end()) {
                 //Now mark point as new growing point
-                growing_points.push_back(npid);
+                growing_points.push_back(npid); // TODO line 21 of pseudocode
               }
             }
           } else if (ne2.size() < dbs.m_minPts) {
-            if(dbs.m_member[npid] == 0) {
+            if(dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
               //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
-              dbs.m_member[npid] == 1;
+              dbs.m_member[npid] == 1; // TODO line 25 of pseudocode
               omp_lock_t* fakeLocks;
-              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks);
+              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
             }
           } // end of else if statement checking to see if it hasn't been clustered yet
         } // end of for loop that goes through all nearest neighbors
@@ -280,23 +295,24 @@ namespace NWUClustering {
         omp_init_lock(&nlocks[i]); // initialize locks
 
     #pragma omp parallel for shared(maxthreads, merge, nlocks) private(i, v1, v2, root1, root2, size, tid, ne3) // allows for the spawned threads to split up the loop iterations
-      for(tid = 0; tid < maxthreads; tid++) {
+      for(tid = 0; tid < maxthreads; tid++) { // TODO line 35 of pseudocode
         size = merge[tid].size()/2;
-        for(i = 0; i < size; i++) {
+        for(i = 0; i < size; i++) { // TODO line 36 of pseudocode
           v1 = merge[tid][2 * i]; // merge is a 2D vector. v1 = even numbered elements
           v2 = merge[tid][2 * i + 1]; // v2 = odd numbered elements
           int con = 0;
 
-          // dbs.m_kdtree->r_nearest_around_point(v2, 0, dbs.m_epsSquare, ne3); TODO commented this out. It's not in orriginal code
+          ne3.clear();
+          dbs.m_kdtree->r_nearest_around_point(v2, 0, dbs.m_epsSquare, ne3); // TODO commented this out. It's not in orriginal code
         
-          // if(ne3.size() >= dbs.m_minPts) TODO
-          if(dbs.m_corepoint[v2] == 1)
+          if(ne3.size() >= dbs.m_minPts) // TODO line 37 of pseudocode
+          // if(dbs.m_corepoint[v2] == 1) // TODO
             con = 1;
-          else if(dbs.m_member[v2] == 0) {
+          else if(dbs.m_member[v2] == 0) { // TODO line 39 of pseudocode
             omp_set_lock(&nlocks[v2]);
             if(dbs.m_member[v2] == 0) { // if v2 is not a member yet   makes sure it's still not a member after it has the lock
               con = 1;
-              dbs.m_member[v2] = 1; //marks it as being a member of a cluster
+              dbs.m_member[v2] = 1; //marks it as being a member of a cluster  TODO line 40 of pseudocode
             }
             omp_unset_lock(&nlocks[v2]);
           }
@@ -306,7 +322,7 @@ namespace NWUClustering {
             root1 = v1;
             root2 = v2;
             // REMS algorithm with splicing compression techniques
-            unionize_neighborhood(dbs, -42, root1, root2, true, nlocks);
+            unionize_neighborhood(dbs, -42, root1, root2, true, nlocks); // TODO lines 38 & 41 of pseudocode
           }
         }
       }
