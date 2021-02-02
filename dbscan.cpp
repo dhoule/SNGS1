@@ -248,14 +248,14 @@ namespace NWUClustering {
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
               
           if(ne2.size() >= dbs.m_minPts) { // TODO line 17 of pseudocode
-
-            // REMS algorithm to merge the trees
-            omp_lock_t* fakeLocks;
-            unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 18 of pseudocode
             
             if(dbs.m_member[npid] == 0) {
               //check to see if the point belongs to a cluster and if not, add to growing_points and mark as clustered
               dbs.m_member[npid] == 1; // TODO line 20 of pseudocode
+
+              // REMS algorithm to merge the trees
+              omp_lock_t* fakeLocks;
+              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 18 of pseudocode
               
               // Also check to see if it has already been added to the growing points vector
               if(find(growing_points.begin(), growing_points.end(), npid) == growing_points.end()) {
