@@ -132,7 +132,7 @@ namespace NWUClustering {
         m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
         if(ne.size() >= m_minPts) {
           growing_points.push_back(sid); // adds the point to the growing points vector
-          m_member[sid] = 1; // marks the point as a member of a cluster
+          // m_member[sid] = 1; // marks the point as a member of a cluster
         }
         alreadySeen.push_back(sid);
         ne.clear();
@@ -150,7 +150,7 @@ namespace NWUClustering {
         m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
         if(ne.size() >= m_minPts) {
           growing_points.push_back(sid); // adds the point to the growing points vector
-          m_member[sid] = 1; // marks the point as a member of a cluster
+          // m_member[sid] = 1; // marks the point as a member of a cluster
         }
         // no matter what, add `sid` to `alreadySeen` and clear out `ne` vector
         alreadySeen.push_back(sid);
@@ -230,10 +230,10 @@ namespace NWUClustering {
         
         pid = growing_points[i];
         dbs.m_corepoint[pid] = 1;
+        dbs.m_member[pid] = 1; // mark as a member
         ne.clear();
         dbs.m_kdtree->r_nearest_around_point(pid, 0, dbs.m_epsSquare, ne); // gets nearest neighbors  TODO line 11 of pseudocode
-            
-        dbs.m_member[pid] = 1; // mark as a member
+
         // get the root containing pid
         root = pid;
         for (j = 0; j < ne.size(); j++) { // TODO line 12 of pseudocode
@@ -252,13 +252,13 @@ namespace NWUClustering {
           root1 = npid;
           root2 = root;
 
-          if(dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
+          if(dbs.m_corepoint[npid] == 1 || dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
             //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
             dbs.m_member[npid] == 1; // TODO line 25 of pseudocode
             omp_lock_t* fakeLocks;
             unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
           }
-          
+
           ne2.clear();
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
               
