@@ -89,6 +89,13 @@ namespace NWUClustering {
     // for(i = 0; i < num_points; i++) {
     //   o << i << " " << clusters[m_parents[i]] << endl; //This was the only one not commented out
     // }
+    for(i = 0; i < m_pts->m_i_num_points; i++) {
+      for (j = 0; j < m_pts->m_i_dims; j++)
+        o << m_pts->m_points[i][j] << " ";  
+      // o << i << " " << clusters[m_parents[i]] << endl;
+      o << clusters[m_parents[i]] << endl;
+    }
+    
     cout << "Points in clusters " << sum_points << " Noise " << noise << " Total points " << noise + sum_points << endl;
     cout << "Total number of clusters " << count << endl;
     // o << "Points in clusters " << sum_points << " Noise " << noise << " Total points " << noise + sum_points << endl;
@@ -244,33 +251,24 @@ namespace NWUClustering {
           // get the root containing npid
           root1 = npid;
           root2 = root;
+
+          if(dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
+            //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
+            dbs.m_member[npid] == 1; // TODO line 25 of pseudocode
+            omp_lock_t* fakeLocks;
+            unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
+          }
+          
           ne2.clear();
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
               
           if(ne2.size() >= dbs.m_minPts) { // TODO line 17 of pseudocode
-            
-            if(dbs.m_member[npid] == 0) {
-              //check to see if the point belongs to a cluster and if not, add to growing_points and mark as clustered
-              dbs.m_member[npid] == 1; // TODO line 20 of pseudocode
-
-              // REMS algorithm to merge the trees
-              omp_lock_t* fakeLocks;
-              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 18 of pseudocode
-              
-              // Also check to see if it has already been added to the growing points vector
-              if(find(growing_points.begin(), growing_points.end(), npid) == growing_points.end()) {
-                //Now mark point as new growing point
-                growing_points.push_back(npid); // TODO line 21 of pseudocode
-              }
+            // Also check to see if it has already been added to the growing points vector
+            if(find(growing_points.begin(), growing_points.end(), npid) == growing_points.end()) {
+              //Now mark point as new growing point
+              growing_points.push_back(npid); // TODO line 21 of pseudocode
             }
-          } else if (ne2.size() < dbs.m_minPts) {
-            if(dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
-              //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
-              dbs.m_member[npid] == 1; // TODO line 25 of pseudocode
-              omp_lock_t* fakeLocks;
-              unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
-            }
-          } // end of else if statement checking to see if it hasn't been clustered yet
+          } 
         } // end of for loop that goes through all nearest neighbors
       } // end of for loop that goes through each point
       if(tid == 0) cout << "after growing_points: " << growing_points.size() << endl;
