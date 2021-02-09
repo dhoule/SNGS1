@@ -203,7 +203,7 @@ namespace NWUClustering {
     // private means that each thread will have its own private copy of variable in memory
     // shared means that all threads will share same copy of variable in memory
     {
-      int lower, upper;
+      int lower, upper; int whatEv = 0;
       tid = omp_get_thread_num(); // gets tid of each thread to identify it
       lower = sch * tid;  //The range of points that each thread has. Sch is number of points per thread
       upper = sch * (tid + 1);
@@ -218,8 +218,8 @@ namespace NWUClustering {
       
       //#pragma omp parallel for
       #pragma omp barrier
-      #pragma omp parallel
-        dbs.getGrowingPoints(growing_points, sch, tid, lower, upper); // Each thread gets its seed points  TODO line 7 of pseudocode
+      // #pragma omp parallel
+      dbs.getGrowingPoints(growing_points, sch, tid, lower, upper); // Each thread gets its seed points  TODO line 7 of pseudocode
 
       if(tid == 0) cout << "before growing_points: " << growing_points.size() << endl;
       
@@ -253,10 +253,10 @@ namespace NWUClustering {
           root2 = root;
 
           if(dbs.m_corepoint[npid] == 1 || dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
-            //If point is not a core point but it doesn't belong to any cluster yet, mark as clustered and union it
+            // mark as clustered and unionize it
             dbs.m_member[npid] == 1; // TODO line 25 of pseudocode
             omp_lock_t* fakeLocks;
-            unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
+            whatEv += unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
           }
 
           ne2.clear();
@@ -271,7 +271,7 @@ namespace NWUClustering {
           } 
         } // end of for loop that goes through all nearest neighbors
       } // end of for loop that goes through each point
-      if(tid == 0) cout << "after growing_points: " << growing_points.size() << endl;
+      if(tid == 0) cout << "after growing_points: " << growing_points.size() << " whatEv " << whatEv << endl;
     }
 
 
@@ -422,9 +422,10 @@ namespace NWUClustering {
     bool locks - flag to determine if locks are to be used or not
     omp_lock_t* actualLock - the actual lock to use if `locks` is set to TRUE. It's a useless variable if `locks` is FALSE.
   */
-  void unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2, bool locks, omp_lock_t* actualLock) {
-  
+  int unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2, bool locks, omp_lock_t* actualLock, int tid) {
+    int whatEv = 0;
     while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
+      if(tid = 0) whatEv++;
       if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
         if(dbs.m_parents[root1] == root1) { //if point is the root
           if(locks) {
@@ -473,5 +474,6 @@ namespace NWUClustering {
         root2 = z; //sets root2 to be the parent of root 2. Advance up the tree in order to find the root
       }
     } // end of while loop that checks to see if the parents are equal
+    return whatEv;
   }
 };
