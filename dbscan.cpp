@@ -241,7 +241,8 @@ namespace NWUClustering {
         for (j = 0; j < ne.size(); j++) { // TODO line 12 of pseudocode
           //this loop goes through all of nearest neighbors of a point
           npid= ne[j].idx; // gets index of ne[j] TODO line 13 of pseudocode
-          
+          if(npid == pid)
+            continue;
           //cout << "prID: " << prID[npid] << " tid: " << tid << endl;
           if(prID[npid] != tid) { // this checks to see if the two points are in the same thread. If not, add them to merge
             // TODO line 28 of pseudocode
@@ -256,36 +257,33 @@ namespace NWUClustering {
           if(dbs.m_corepoint[npid] == 1 || dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
             // mark as clustered and unionize it
             dbs.m_member[npid] = 1; // TODO line 25 of pseudocode
-            // omp_lock_t* fakeLocks;
-            // unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks, tid); // TODO line 24 of pseudocode
-            // REMS algorithm to merge the trees
-            while(dbs.m_parents[root1] != dbs.m_parents[root2]) {
-              if(dbs.m_parents[root1] < dbs.m_parents[root2]) {
-                if(dbs.m_parents[root1] == root1) {
-                  dbs.m_parents[root1] = dbs.m_parents[root2];
-                  root = dbs.m_parents[root2];
-                  break;
-                }
-                // splicing
-                int z = dbs.m_parents[root1];
-                dbs.m_parents[root1] = dbs.m_parents[root2];
-                root1 = z;
-              } else {
-                if(dbs.m_parents[root2] == root2) {
-                  dbs.m_parents[root2] = dbs.m_parents[root1];
-                  root = dbs.m_parents[root1];
-                  break;
-                }
-                // splicing
-                int z = dbs.m_parents[root2];
-                dbs.m_parents[root2] = dbs.m_parents[root1];         
-                root2 = z;
-              }
-            }
+            omp_lock_t* fakeLocks;
+            unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks, tid); // TODO line 24 of pseudocode
+            // // REMS algorithm to merge the trees
+            // while(dbs.m_parents[root1] != dbs.m_parents[root2]) {
+            //   if(dbs.m_parents[root1] < dbs.m_parents[root2]) {
+            //     if(dbs.m_parents[root1] == root1) {
+            //       dbs.m_parents[root1] = dbs.m_parents[root2];
+            //       root = dbs.m_parents[root2];
+            //       break;
+            //     }
+            //     // splicing
+            //     int z = dbs.m_parents[root1];
+            //     dbs.m_parents[root1] = dbs.m_parents[root2];
+            //     root1 = z;
+            //   } else {
+            //     if(dbs.m_parents[root2] == root2) {
+            //       dbs.m_parents[root2] = dbs.m_parents[root1];
+            //       root = dbs.m_parents[root1];
+            //       break;
+            //     }
+            //     // splicing
+            //     int z = dbs.m_parents[root2];
+            //     dbs.m_parents[root2] = dbs.m_parents[root1];         
+            //     root2 = z;
+            //   }
+            // }
           }
-
-          if(npid == pid)
-            continue;
 
           ne2.clear();
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
@@ -348,44 +346,44 @@ namespace NWUClustering {
             root1 = v1;
             root2 = v2;
             // REMS algorithm with splicing compression techniques
-            // int fakeInt = -42;
-            // unionize_neighborhood(dbs, fakeInt, root1, root2, true, nlocks, 1); // TODO lines 38 & 41 of pseudocode
-            // REMS algorithm with splicing compression techniques
-            while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
-              if (dbs.m_parents[root1] < dbs.m_parents[root2]) {
-                if(dbs.m_parents[root1] == root1) { // root1 is a root
-                  omp_set_lock(&nlocks[root1]);
-                  int p_set = false;
-                  if(dbs.m_parents[root1] == root1) { // if root1 is still a root
-                    dbs.m_parents[root1] = dbs.m_parents[root2];
-                    p_set = true;
-                  }
-                  omp_unset_lock(&nlocks[root1]);
-                  if (p_set) // merge successful
-                    break;
-                }
-                // splicing
-                int z = dbs.m_parents[root1];
-                dbs.m_parents[root1] = dbs.m_parents[root2];
-                root1 = z;
-              } else {
-                if(dbs.m_parents[root2] == root2) { // root2 is a root
-                  omp_set_lock(&nlocks[root2]);
-                  int p_set = false;
-                  if(dbs.m_parents[root2] == root2) { // check if root2 is a root
-                    dbs.m_parents[root2] = dbs.m_parents[root1];
-                    p_set = true;
-                  }
-                  omp_unset_lock(&nlocks[root2]);
-                  if (p_set) // merge successful
-                    break;
-                }
-                //splicing
-                int z = dbs.m_parents[root2];
-                dbs.m_parents[root2] = dbs.m_parents[root1];
-                root2 = z;
-              } 
-            }
+            int fakeInt = -42;
+            unionize_neighborhood(dbs, fakeInt, root1, root2, true, nlocks, 1); // TODO lines 38 & 41 of pseudocode
+            // // REMS algorithm with splicing compression techniques
+            // while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
+            //   if (dbs.m_parents[root1] < dbs.m_parents[root2]) {
+            //     if(dbs.m_parents[root1] == root1) { // root1 is a root
+            //       omp_set_lock(&nlocks[root1]);
+            //       int p_set = false;
+            //       if(dbs.m_parents[root1] == root1) { // if root1 is still a root
+            //         dbs.m_parents[root1] = dbs.m_parents[root2];
+            //         p_set = true;
+            //       }
+            //       omp_unset_lock(&nlocks[root1]);
+            //       if (p_set) // merge successful
+            //         break;
+            //     }
+            //     // splicing
+            //     int z = dbs.m_parents[root1];
+            //     dbs.m_parents[root1] = dbs.m_parents[root2];
+            //     root1 = z;
+            //   } else {
+            //     if(dbs.m_parents[root2] == root2) { // root2 is a root
+            //       omp_set_lock(&nlocks[root2]);
+            //       int p_set = false;
+            //       if(dbs.m_parents[root2] == root2) { // check if root2 is a root
+            //         dbs.m_parents[root2] = dbs.m_parents[root1];
+            //         p_set = true;
+            //       }
+            //       omp_unset_lock(&nlocks[root2]);
+            //       if (p_set) // merge successful
+            //         break;
+            //     }
+            //     //splicing
+            //     int z = dbs.m_parents[root2];
+            //     dbs.m_parents[root2] = dbs.m_parents[root1];
+            //     root2 = z;
+            //   } 
+            // }
           }
         }
       }
