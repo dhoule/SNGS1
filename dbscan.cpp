@@ -122,12 +122,11 @@ namespace NWUClustering {
     srand(time(NULL));
 
     if(number_looking_for >= (upper - lower)) {
-      number_looking_for = (upper - lower);
       allPoints = true;
     }
     if(allPoints) {
       // if all points are to be searched, no point in pseudo-randomly picking them
-      for(int h=0; h < number_looking_for; h++) {
+      for(int h=lower; h < upper; h++) {
         sid = (*ind)[h];
         m_kdtree->r_nearest_around_point(sid, 0, m_epsSquare, ne);
         if(ne.size() >= m_minPts) {
@@ -200,13 +199,15 @@ namespace NWUClustering {
     // cout<< endl;
 
     #pragma omp parallel private(root, root1, root2, tid, ne, ne2, npid, i, j, pid, growing_points, sid) shared(sch, ind) //, prID) // creates threads
-    // private means that each thread will have its own private copy of variable in memory
-    // shared means that all threads will share same copy of variable in memory
     {
-      int lower, upper; int whatEv = 0;
+      // private means that each thread will have its own private copy of variable in memory
+      // shared means that all threads will share same copy of variable in memory
+      int lower, upper; 
       tid = omp_get_thread_num(); // gets tid of each thread to identify it
+
       lower = sch * tid;  //The range of points that each thread has. Sch is number of points per thread
       upper = sch * (tid + 1);
+      
       if(upper > num_points)
         upper = num_points;
 
@@ -218,29 +219,29 @@ namespace NWUClustering {
       
       //#pragma omp parallel for
       #pragma omp barrier
-      // #pragma omp parallel
+
       dbs.getGrowingPoints(growing_points, sch, tid, lower, upper); // Each thread gets its seed points  TODO line 7 of pseudocode
 
-      if(tid == 0) cout << "before growing_points: " << growing_points.size() << endl;
+      // if(tid == 0) cout << "before growing_points: " << growing_points.size() << endl;
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
-
+      
       for(int i = 0; i < growing_points.size(); i++) { // Iterates through every growing point  TODO line 10 of pseudocode
         
         pid = growing_points[i];
         dbs.m_corepoint[pid] = 1;
-        dbs.m_member[pid] = 1; // mark as a member
+        // dbs.m_member[pid] = 1; // mark as a member
         ne.clear();
         dbs.m_kdtree->r_nearest_around_point(pid, 0, dbs.m_epsSquare, ne); // gets nearest neighbors  TODO line 11 of pseudocode
 
         // get the root containing pid
         root = pid;
+
         for (j = 0; j < ne.size(); j++) { // TODO line 12 of pseudocode
           //this loop goes through all of nearest neighbors of a point
           npid= ne[j].idx; // gets index of ne[j] TODO line 13 of pseudocode
-          if(npid == pid)
-            continue;
+          
           //cout << "prID: " << prID[npid] << " tid: " << tid << endl;
           if(prID[npid] != tid) { // this checks to see if the two points are in the same thread. If not, add them to merge
             // TODO line 28 of pseudocode
@@ -254,10 +255,37 @@ namespace NWUClustering {
 
           if(dbs.m_corepoint[npid] == 1 || dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
             // mark as clustered and unionize it
-            dbs.m_member[npid] == 1; // TODO line 25 of pseudocode
-            omp_lock_t* fakeLocks;
-            whatEv += unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks); // TODO line 24 of pseudocode
+            dbs.m_member[npid] = 1; // TODO line 25 of pseudocode
+            // omp_lock_t* fakeLocks;
+            // unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks, tid); // TODO line 24 of pseudocode
+            // REMS algorithm to merge the trees
+            while(dbs.m_parents[root1] != dbs.m_parents[root2]) {
+              if(dbs.m_parents[root1] < dbs.m_parents[root2]) {
+                if(dbs.m_parents[root1] == root1) {
+                  dbs.m_parents[root1] = dbs.m_parents[root2];
+                  root = dbs.m_parents[root2];
+                  break;
+                }
+                // splicing
+                int z = dbs.m_parents[root1];
+                dbs.m_parents[root1] = dbs.m_parents[root2];
+                root1 = z;
+              } else {
+                if(dbs.m_parents[root2] == root2) {
+                  dbs.m_parents[root2] = dbs.m_parents[root1];
+                  root = dbs.m_parents[root1];
+                  break;
+                }
+                // splicing
+                int z = dbs.m_parents[root2];
+                dbs.m_parents[root2] = dbs.m_parents[root1];         
+                root2 = z;
+              }
+            }
           }
+
+          if(npid == pid)
+            continue;
 
           ne2.clear();
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
@@ -270,8 +298,8 @@ namespace NWUClustering {
             }
           } 
         } // end of for loop that goes through all nearest neighbors
-      } // end of for loop that goes through each point
-      if(tid == 0) cout << "after growing_points: " << growing_points.size() << " whatEv " << whatEv << endl;
+      } // end of for loop that goes through each point 
+      // if(tid == 0) cout << "after growing_points: " << growing_points.size() << endl;
     }
 
 
@@ -285,7 +313,7 @@ namespace NWUClustering {
     cout << "Local computation took " << stop - start << " seconds." << endl;
     //allocate and initiate locks
     omp_lock_t *nlocks;
-    nlocks = (omp_lock_t *) malloc(num_points*sizeof(omp_lock_t)); // Initialize nlocks array for every data point
+    nlocks = (omp_lock_t *) malloc(num_points * sizeof(omp_lock_t)); // Initialize nlocks array for every data point
     //start = stop;
     start = omp_get_wtime();
     #pragma omp parallel for private(i) shared(nlocks)
@@ -320,7 +348,44 @@ namespace NWUClustering {
             root1 = v1;
             root2 = v2;
             // REMS algorithm with splicing compression techniques
-            unionize_neighborhood(dbs, -42, root1, root2, true, nlocks); // TODO lines 38 & 41 of pseudocode
+            // int fakeInt = -42;
+            // unionize_neighborhood(dbs, fakeInt, root1, root2, true, nlocks, 1); // TODO lines 38 & 41 of pseudocode
+            // REMS algorithm with splicing compression techniques
+            while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
+              if (dbs.m_parents[root1] < dbs.m_parents[root2]) {
+                if(dbs.m_parents[root1] == root1) { // root1 is a root
+                  omp_set_lock(&nlocks[root1]);
+                  int p_set = false;
+                  if(dbs.m_parents[root1] == root1) { // if root1 is still a root
+                    dbs.m_parents[root1] = dbs.m_parents[root2];
+                    p_set = true;
+                  }
+                  omp_unset_lock(&nlocks[root1]);
+                  if (p_set) // merge successful
+                    break;
+                }
+                // splicing
+                int z = dbs.m_parents[root1];
+                dbs.m_parents[root1] = dbs.m_parents[root2];
+                root1 = z;
+              } else {
+                if(dbs.m_parents[root2] == root2) { // root2 is a root
+                  omp_set_lock(&nlocks[root2]);
+                  int p_set = false;
+                  if(dbs.m_parents[root2] == root2) { // check if root2 is a root
+                    dbs.m_parents[root2] = dbs.m_parents[root1];
+                    p_set = true;
+                  }
+                  omp_unset_lock(&nlocks[root2]);
+                  if (p_set) // merge successful
+                    break;
+                }
+                //splicing
+                int z = dbs.m_parents[root2];
+                dbs.m_parents[root2] = dbs.m_parents[root1];
+                root2 = z;
+              } 
+            }
           }
         }
       }
@@ -422,37 +487,29 @@ namespace NWUClustering {
     bool locks - flag to determine if locks are to be used or not
     omp_lock_t* actualLock - the actual lock to use if `locks` is set to TRUE. It's a useless variable if `locks` is FALSE.
   */
-  int unionize_neighborhood(ClusteringAlgo& dbs, int root, int root1, int root2, bool locks, omp_lock_t* actualLock, int tid) {
-    int whatEv = 0;
-    while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
-      if(tid = 0) whatEv++;
-      if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
-        if(dbs.m_parents[root1] == root1) { //if point is the root
-          if(locks) {
+  void unionize_neighborhood(ClusteringAlgo& dbs, int& root, int root1, int root2, bool locks, omp_lock_t* actualLock, int tid) {
+    
+    if(locks){
+      // REMS algorithm with splicing compression techniques
+      while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
+        if (dbs.m_parents[root1] < dbs.m_parents[root2]) {
+          if(dbs.m_parents[root1] == root1) { // root1 is a root
             omp_set_lock(&actualLock[root1]);
             int p_set = false;
-            if(dbs.m_parents[root1] == root1) { // if root1 is still a root after lock has been set
+            if(dbs.m_parents[root1] == root1) { // if root1 is still a root
               dbs.m_parents[root1] = dbs.m_parents[root2];
               p_set = true;
             }
             omp_unset_lock(&actualLock[root1]);
             if (p_set) // merge successful
               break;
-          } else {
-            dbs.m_parents[root1] = dbs.m_parents[root2]; // Sets the parent of root1 to be the parent of root2
-            root = dbs.m_parents[root2]; // sets root to be the parent of root2
-            break; // root has been found. Break from the loop
           }
-        }
-        // splicing
-        // if not at the root, then set root 1 equal to the parent. Advance up the tree
-        int z = dbs.m_parents[root1]; //creates temporary variable
-        dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
-        root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
-      } else {
-        //root2 < root 1
-        if(dbs.m_parents[root2] == root2) { //if point is the root else
-          if(locks) {
+          // splicing
+          int z = dbs.m_parents[root1];
+          dbs.m_parents[root1] = dbs.m_parents[root2];
+          root1 = z;
+        } else {
+          if(dbs.m_parents[root2] == root2) { // root2 is a root
             omp_set_lock(&actualLock[root2]);
             int p_set = false;
             if(dbs.m_parents[root2] == root2) { // check if root2 is a root
@@ -462,18 +519,88 @@ namespace NWUClustering {
             omp_unset_lock(&actualLock[root2]);
             if (p_set) // merge successful
               break;
-          } else {
-            dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
-            root = dbs.m_parents[root1]; //sets root to be the parent of root1
-            break; //root has been found. Break from loop
           }
-        }
-        // splicing
-        int z = dbs.m_parents[root2]; //creates temporary variable
-        dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1  
-        root2 = z; //sets root2 to be the parent of root 2. Advance up the tree in order to find the root
+          //splicing
+          int z = dbs.m_parents[root2];
+          dbs.m_parents[root2] = dbs.m_parents[root1];
+          root2 = z;
+        } 
       }
-    } // end of while loop that checks to see if the parents are equal
-    return whatEv;
+    } else{
+      // REMS algorithm to merge the trees
+      while(dbs.m_parents[root1] != dbs.m_parents[root2]) {
+        if(dbs.m_parents[root1] < dbs.m_parents[root2]) {
+          if(dbs.m_parents[root1] == root1) {
+            dbs.m_parents[root1] = dbs.m_parents[root2];
+            root = dbs.m_parents[root2];
+            break;
+          }
+          // splicing
+          int z = dbs.m_parents[root1];
+          dbs.m_parents[root1] = dbs.m_parents[root2];
+          root1 = z;
+        } else {
+          if(dbs.m_parents[root2] == root2) {
+            dbs.m_parents[root2] = dbs.m_parents[root1];
+            root = dbs.m_parents[root1];
+            break;
+          }
+          // splicing
+          int z = dbs.m_parents[root2];
+          dbs.m_parents[root2] = dbs.m_parents[root1];         
+          root2 = z;
+        }
+      }
+    }
+    
+    // while(dbs.m_parents[root1] != dbs.m_parents[root2]) { // while the parents aren't equal
+    //   if(dbs.m_parents[root1] < dbs.m_parents[root2]) { //if root1's value is less than root2's value (smaller nodes point to larger nodes)
+    //     if(dbs.m_parents[root1] == root1) { //if point is the root
+    //       if(locks) {
+    //         omp_set_lock(&actualLock[root1]);
+    //         int p_set = false;
+    //         if(dbs.m_parents[root1] == root1) { // if root1 is still a root after lock has been set
+    //           dbs.m_parents[root1] = dbs.m_parents[root2];
+    //           p_set = true;
+    //         }
+    //         omp_unset_lock(&actualLock[root1]);
+    //         if (p_set) // merge successful
+    //           break;
+    //       } else {
+    //         dbs.m_parents[root1] = dbs.m_parents[root2]; // Sets the parent of root1 to be the parent of root2
+    //         root = dbs.m_parents[root2]; // sets root to be the parent of root2
+    //         break; // root has been found. Break from the loop
+    //       }
+    //     }
+    //     // splicing
+    //     // if not at the root, then set root 1 equal to the parent. Advance up the tree
+    //     int z = dbs.m_parents[root1]; //creates temporary variable
+    //     dbs.m_parents[root1] = dbs.m_parents[root2]; //makes root1's subtree a sibling of root2
+    //     root1 = z; //sets root1 to be the parent of root 1. Advance up the tree in order to find the root
+    //   } else {
+    //     //root2 < root 1
+    //     if(dbs.m_parents[root2] == root2) { //if point is the root else
+    //       if(locks) {
+    //         omp_set_lock(&actualLock[root2]);
+    //         int p_set = false;
+    //         if(dbs.m_parents[root2] == root2) { // check if root2 is a root
+    //           dbs.m_parents[root2] = dbs.m_parents[root1];
+    //           p_set = true;
+    //         }
+    //         omp_unset_lock(&actualLock[root2]);
+    //         if (p_set) // merge successful
+    //           break;
+    //       } else {
+    //         dbs.m_parents[root2] = dbs.m_parents[root1]; //Sets the parent of root2 to be the parent of root1
+    //         root = dbs.m_parents[root1]; //sets root to be the parent of root1
+    //         break; //root has been found. Break from loop
+    //       }
+    //     }
+    //     // splicing
+    //     int z = dbs.m_parents[root2]; //creates temporary variable
+    //     dbs.m_parents[root2] = dbs.m_parents[root1]; // makes root2's subtree a sibling of root1  
+    //     root2 = z; //sets root2 to be the parent of root 2. Advance up the tree in order to find the root
+    //   }
+    // } // end of while loop that checks to see if the parents are equal
   }
 };
