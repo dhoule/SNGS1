@@ -38,11 +38,6 @@ inline bool operator<(const kdtree2_result& e1, const kdtree2_result& e2) {
   return (e1.dis < e2.dis);
 }
 
-//create inline operator here for set difference operation
-/*inline bool operator<(const kdtree2_result_vector& v1, const kdtree2_result_vector& v2) {
-  return (v1[0].idx < v2[0].idx);
-}     need to implement own version of set_difference. ne and ne2 both need to be sorted by idx for function to work         */
-
 //
 //       KDTREE2_RESULT_VECTOR implementation
 // 
@@ -99,9 +94,9 @@ kdtree2::kdtree2(array2dfloat& data_in,bool rearrange_in,int dim_in)
   if (dim_in > 0) 
     dim = dim_in;
  
- // cout << "building kd tree" << endl;
+  // cout << "building kd tree" << endl;
   build_tree();
-//cout << "building kd tree" << endl;
+  //cout << "building kd tree" << endl;
 
   if (rearrange) {
     // if we have a rearranged tree.
@@ -279,7 +274,7 @@ kdtree2_node* kdtree2::build_tree_for_range(int l, int u, kdtree2_node* parent) 
     } else if (node->left == NULL) {
       for (int i=0; i<dim; i++) 
         node->box[i] = node->right->box[i]; 
-      
+
       node->cut_val =  node->right->box[c].upper;
       node->cut_val_left = node->cut_val_right = node->cut_val;
     } else {
@@ -485,7 +480,6 @@ void kdtree2::n_nearest_brute_force(vector<float>& qv, int nn, kdtree2_result_ve
     result.push_back(e);
   }
   sort(result.begin(), result.end() ); 
-
 }
 
 void kdtree2::n_nearest(vector<float>& qv, int nn, kdtree2_result_vector& result) {
@@ -502,7 +496,6 @@ void kdtree2::n_nearest(vector<float>& qv, int nn, kdtree2_result_vector& result
 
   if (sort_results) 
     sort(result.begin(), result.end());
-  
 }
 
 // search for n nearest to a given query vector 'qv'.
@@ -529,7 +522,6 @@ void kdtree2::n_nearest_around_point(int idxin, int correltime, int nn, kdtree2_
 
   if (sort_results) 
     sort(result.begin(), result.end());
-    
 }
 
 
@@ -549,7 +541,6 @@ void kdtree2::r_nearest(vector<float>& qv, float r2, kdtree2_result_vector& resu
 
   if (sort_results) 
     sort(result.begin(), result.end());
-  
 }
 
 int kdtree2::r_count(vector<float>& qv, float r2) {
@@ -566,8 +557,6 @@ int kdtree2::r_count(vector<float>& qv, float r2) {
     root->search(sr); 
     return(result.size());
   }
-
-  
 }
 
 void kdtree2::r_nearest_around_point(int idxin, int correltime, float r2, kdtree2_result_vector& result) {
@@ -616,8 +605,6 @@ int kdtree2::r_count_around_point(int idxin, int correltime, float r2) {
     root->search(sr); 
     return(result.size());
   }
-
-  
 }
 
 
@@ -814,12 +801,6 @@ void kdtree2_node::process_terminal_node(searchrecord& sr) {
       // than the last on the list, and belongs on the list.
       // 
       kdtree2_result e;
-      /*kdtree2_result e2;
-      e.dis = 10;
-      e2.dis = 20;
-      if(e < e2){
-        cout << "This is just a test" << endl;
-      }*/
       e.idx = indexofi;
       e.dis = dis;
       ballsize = sr.result.replace_maxpri_elt_return_new_maxpri(e); 
