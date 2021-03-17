@@ -114,7 +114,7 @@ namespace NWUClustering {
     int upper - the upper-bound index to read the points
   */
   void ClusteringAlgo::getGrowingPoints(vector<int>& growing_points, int sch, int tid, int lower, int upper) {
-    int sid, number_looking_for = m_seeds;
+    int sid, blockage = sch * tid;
     kdtree2_result_vector ne;
     vector<int>* ind = m_kdtree->getIndex(); // Sets a vector that contains the index of all points
     vector<int> alreadySeen;
@@ -133,15 +133,15 @@ namespace NWUClustering {
           growing_points.push_back(sid); // adds the point to the growing points vector
           // m_member[sid] = 1; // marks the point as a member of a cluster
         }
-        alreadySeen.push_back(sid);
+        // alreadySeen.push_back(sid);
         ne.clear();
       }
     } else {
 
-      for(int h=0; h < number_looking_for; h++) {
+      for(int h=0; h < m_seeds; h++) {
         //this loop initializes first n growing points randomly
         do {
-          sid = (*ind)[(rand() % sch) + (sch * tid)]; // generates random index in the range of each thread's set of data points
+          sid = (*ind)[(rand() % sch) + blockage]; // generates random index in the range of each thread's set of data points
           // `sid` should NOT have already been seen.
         } while (find(alreadySeen.begin(), alreadySeen.end(), sid) != alreadySeen.end());
 
@@ -165,7 +165,7 @@ namespace NWUClustering {
     
     int tid, i, pid, j, k, npid, root, root1, root2, sid;
     int num_points = dbs.m_pts->m_i_num_points;
-    vector <int> growing_points;
+    vector <int> growing_points = [];
     // srand(time(NULL));
 
     // initialize some parameters
@@ -207,7 +207,7 @@ namespace NWUClustering {
 
       lower = sch * tid;  //The range of points that each thread has. Sch is number of points per thread
       upper = sch * (tid + 1);
-      
+      // cap the max points to the actual number of points in the last thread
       if(upper > num_points)
         upper = num_points;
 
@@ -221,8 +221,6 @@ namespace NWUClustering {
       #pragma omp barrier
 
       dbs.getGrowingPoints(growing_points, sch, tid, lower, upper); // Each thread gets its seed points  TODO line 7 of pseudocode
-
-      // if(tid == 0) cout << "before growing_points: " << growing_points.size() << endl;
       
       //cout << "made it to the barrier" << endl; 
       #pragma omp barrier // all threads will stop here until every thread has reached this point
@@ -230,7 +228,7 @@ namespace NWUClustering {
       for(int i = 0; i < growing_points.size(); i++) { // Iterates through every growing point  TODO line 10 of pseudocode
         
         pid = growing_points[i];
-        dbs.m_corepoint[pid] = 1;
+        dbs.m_corepoint[pid] = 1; // It's already known to be a centroid, so just mark it as such
         // dbs.m_member[pid] = 1; // mark as a member
         ne.clear();
         dbs.m_kdtree->r_nearest_around_point(pid, 0, dbs.m_epsSquare, ne); // gets nearest neighbors  TODO line 11 of pseudocode
@@ -241,10 +239,10 @@ namespace NWUClustering {
         for (j = 0; j < ne.size(); j++) { // TODO line 12 of pseudocode
           //this loop goes through all of nearest neighbors of a point
           npid= ne[j].idx; // gets index of ne[j] TODO line 13 of pseudocode
-          if(npid == pid)
+          if(npid == pid) // some short circuit work to speed up the code
             continue;
           //cout << "prID: " << prID[npid] << " tid: " << tid << endl;
-          if(prID[npid] != tid) { // this checks to see if the two points are in the same thread. If not, add them to merge
+          if(prID[npid] != tid) { // this checks to see if the two points are in the same thread. If not, add them to `merge`
             // TODO line 28 of pseudocode
             merge[tid].push_back(pid); // The two points gets added to the end of the merge vector and will be merged later
             merge[tid].push_back(npid);
@@ -254,18 +252,19 @@ namespace NWUClustering {
           root1 = npid;
           root2 = root;
 
+          // If `nip` has been marked as a corepoint OR has not been marked as a member yet
           if(dbs.m_corepoint[npid] == 1 || dbs.m_member[npid] == 0) { // TODO line 23 of pseudocode
             // mark as clustered and unionize it
             dbs.m_member[npid] = 1; // TODO line 25 of pseudocode
-            omp_lock_t* fakeLocks;
+            omp_lock_t* fakeLocks; // name speaks for itself
             unionize_neighborhood(dbs, root, root1, root2, false, fakeLocks, tid); // TODO line 24 of pseudocode
           }
-
+          // need to check if `npid` is a future corepoint or note
           ne2.clear();
           dbs.m_kdtree->r_nearest_around_point(npid, 0, dbs.m_epsSquare, ne2);
               
           if(ne2.size() >= dbs.m_minPts) { // TODO line 17 of pseudocode
-            // Also check to see if it has already been added to the growing points vector
+            // Also check to see if it has already been added to the `growing_points` vector
             if(find(growing_points.begin(), growing_points.end(), npid) == growing_points.end()) {
               //Now mark point as new growing point
               growing_points.push_back(npid); // TODO line 21 of pseudocode
@@ -277,7 +276,7 @@ namespace NWUClustering {
     }
 
 
-      
+    // Some preprocessing before merging between threads 
     int v1, v2, size;
     kdtree2_result_vector ne3;
     // merge the trees that have not been merged yet
@@ -296,74 +295,40 @@ namespace NWUClustering {
 
     #pragma omp parallel for shared(maxthreads, merge, nlocks) private(i, v1, v2, root1, root2, size, tid, ne3) // allows for the spawned threads to split up the loop iterations
       for(tid = 0; tid < maxthreads; tid++) { // TODO line 35 of pseudocode
-        size = merge[tid].size()/2;
+        size = merge[tid].size()/2; // divided by 2 because `pid` & `npid` are sent together
         for(i = 0; i < size; i++) { // TODO line 36 of pseudocode
-          v1 = merge[tid][2 * i]; // merge is a 2D vector. v1 = even numbered elements
-          v2 = merge[tid][2 * i + 1]; // v2 = odd numbered elements
-          int con = 0;
+          v1 = merge[tid][2 * i]; // merge is a 2D vector. v1 = even numbered elements. AKA `pid`
+          v2 = merge[tid][2 * i + 1]; // v2 = odd numbered elements. AKA `npid`
+          int con = 0; // used as a flag
 
           ne3.clear();
           dbs.m_kdtree->r_nearest_around_point(v2, 0, dbs.m_epsSquare, ne3); // TODO commented this out. It's not in orriginal code
         
           if(ne3.size() >= dbs.m_minPts) // TODO line 37 of pseudocode
-          // if(dbs.m_corepoint[v2] == 1) // TODO
-            con = 1;
+            // if(dbs.m_corepoint[v2] == 1) // TODO
+            con = 1; // trip the flag
           else if(dbs.m_member[v2] == 0) { // TODO line 39 of pseudocode
-            omp_set_lock(&nlocks[v2]);
+            omp_set_lock(&nlocks[v2]); 
             if(dbs.m_member[v2] == 0) { // if v2 is not a member yet   makes sure it's still not a member after it has the lock
-              con = 1;
+              con = 1; // trip the flag
               dbs.m_member[v2] = 1; //marks it as being a member of a cluster  TODO line 40 of pseudocode
             }
             omp_unset_lock(&nlocks[v2]);
           }
-
+          // Was the flag tripped?
           if(con == 1) {
             // lock based approach for merging
+            // Renames variables to keep naming conventions. Not really needed though...
             root1 = v1;
             root2 = v2;
             // REMS algorithm with splicing compression techniques
             int fakeInt = -42;
             unionize_neighborhood(dbs, fakeInt, root1, root2, true, nlocks, 1); // TODO lines 38 & 41 of pseudocode
-            // // REMS algorithm with splicing compression techniques
-            // while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
-            //   if (dbs.m_parents[root1] < dbs.m_parents[root2]) {
-            //     if(dbs.m_parents[root1] == root1) { // root1 is a root
-            //       omp_set_lock(&nlocks[root1]);
-            //       int p_set = false;
-            //       if(dbs.m_parents[root1] == root1) { // if root1 is still a root
-            //         dbs.m_parents[root1] = dbs.m_parents[root2];
-            //         p_set = true;
-            //       }
-            //       omp_unset_lock(&nlocks[root1]);
-            //       if (p_set) // merge successful
-            //         break;
-            //     }
-            //     // splicing
-            //     int z = dbs.m_parents[root1];
-            //     dbs.m_parents[root1] = dbs.m_parents[root2];
-            //     root1 = z;
-            //   } else {
-            //     if(dbs.m_parents[root2] == root2) { // root2 is a root
-            //       omp_set_lock(&nlocks[root2]);
-            //       int p_set = false;
-            //       if(dbs.m_parents[root2] == root2) { // check if root2 is a root
-            //         dbs.m_parents[root2] = dbs.m_parents[root1];
-            //         p_set = true;
-            //       }
-            //       omp_unset_lock(&nlocks[root2]);
-            //       if (p_set) // merge successful
-            //         break;
-            //     }
-            //     //splicing
-            //     int z = dbs.m_parents[root2];
-            //     dbs.m_parents[root2] = dbs.m_parents[root1];
-            //     root2 = z;
-            //   } 
-            // }
           }
         }
       }
-          
+    
+    // Clean up time
     stop = omp_get_wtime();
     free(nlocks);
     
@@ -462,7 +427,7 @@ namespace NWUClustering {
     omp_lock_t* actualLock - the actual lock to use if `locks` is set to TRUE. It's a useless variable if `locks` is FALSE.
   */
   void unionize_neighborhood(ClusteringAlgo& dbs, int& root, int root1, int root2, bool locks, omp_lock_t* actualLock, int tid) {
-    
+    // `tid` is used to limit the output to a certain thread
     if(locks){
       // REMS algorithm with splicing compression techniques
       while (dbs.m_parents[root1] != dbs.m_parents[root2]) {
